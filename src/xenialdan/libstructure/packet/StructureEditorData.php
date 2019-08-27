@@ -18,9 +18,4 @@ class StructureEditorData
     public $mode;
     /** @var StructureSettings */
     public $structureSettings;
-
-    public function __toString()
-    {
-        return PHP_EOL . implode(PHP_EOL, is_array($r = print_r($this, true))?$r:[$r]);
-    }
 }

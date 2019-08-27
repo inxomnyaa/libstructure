@@ -19,12 +19,15 @@ class StructureBlockUpdatePacket extends \pocketmine\network\mcpe\protocol\Struc
     public $structureEditorData;
     /** @var bool */
     public $unknownBool;//could be showInvisibleBlocks
+    /** @var bool */
+    public $unknownBool2;
 
     protected function decodePayload()
     {
         $this->getBlockPosition($this->x, $this->y, $this->z);
         $this->structureEditorData = $this->getStructureEditorData();
         $this->unknownBool = $this->getBool();
+        $this->unknownBool2 = $this->getBool();
     }
 
     protected function encodePayload()
@@ -32,6 +35,7 @@ class StructureBlockUpdatePacket extends \pocketmine\network\mcpe\protocol\Struc
         $this->putBlockPosition($this->x, $this->y, $this->z);
         $this->putStructureEditorData($this->structureEditorData);
         $this->putBool($this->unknownBool);
+        $this->putBool($this->unknownBool2);
     }
 
     public function handle(NetworkSession $session): bool

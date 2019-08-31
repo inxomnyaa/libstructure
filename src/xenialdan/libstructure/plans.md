@@ -1,0 +1,5 @@
+- show just UI (use invalid mode for that - nearly no buttons)
+- show just bounding box
+- readonly/modifiable
+- do not allow placing type 0 (clicking it causes client crash)
+- callback function upon modification

@@ -5,11 +5,11 @@ namespace xenialdan\libstructure;
 use pocketmine\event\Listener;
 use pocketmine\event\server\DataPacketReceiveEvent;
 use pocketmine\network\mcpe\protocol\PacketPool;
-use pocketmine\network\mcpe\protocol\StructureBlockUpdatePacket;
 use pocketmine\network\mcpe\protocol\StructureTemplateDataExportRequestPacket;
 use pocketmine\network\mcpe\protocol\StructureTemplateDataExportResponsePacket;
 use pocketmine\plugin\Plugin;
 use pocketmine\Server;
+use xenialdan\libstructure\packet\StructureBlockUpdatePacket;
 
 class PacketListener implements Listener
 {
@@ -42,7 +42,7 @@ class PacketListener implements Listener
 
         self::$registrant = $plugin;
         $plugin->getServer()->getPluginManager()->registerEvents(new self, $plugin);
-        PacketPool::registerPacket(new \xenialdan\libstructure\packet\StructureBlockUpdatePacket());
+        PacketPool::registerPacket(new StructureBlockUpdatePacket());
     }
 
     public function onDataPacketReceiveEvent(DataPacketReceiveEvent $e)
@@ -61,16 +61,10 @@ class PacketListener implements Listener
 
     private function onStructureTemplateDataExportRequestPacket(DataPacketReceiveEvent $e)
     {
-        if (!($pk = $e->getPacket()) instanceof StructureTemplateDataExportRequestPacket) throw new \InvalidArgumentException(get_class($e->getPacket()) . " is not a " . StructureTemplateDataExportRequestPacket::class);
-        /** @var StructureTemplateDataExportRequestPacket $pk */
-        Server::getInstance()->getLogger()->debug("Got StructureTemplateDataExportRequestPacket " . $e->getPacket()->getRemaining());
     }
 
     private function onStructureTemplateDataExportResponsePacket(DataPacketReceiveEvent $e)
     {
-        if (!($pk = $e->getPacket()) instanceof StructureTemplateDataExportResponsePacket) throw new \InvalidArgumentException(get_class($e->getPacket()) . " is not a " . StructureTemplateDataExportResponsePacket::class);
-        /** @var StructureTemplateDataExportResponsePacket $pk */
-        Server::getInstance()->getLogger()->debug("Got StructureTemplateDataExportResponsePacket " . $e->getPacket()->getRemaining());
     }
 
 }

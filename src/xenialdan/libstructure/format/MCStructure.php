@@ -83,9 +83,9 @@ class MCStructure
 		//positions
 		$l = $this->size->getZ();
 		$h = $this->size->getY();
-		foreach (range(0, $this->size->getX()) as $x) {
+		foreach (range(0, $this->size->getZ()) as $z) {
 			foreach (range(0, $this->size->getY()) as $y) {
-				foreach (range(0, $this->size->getZ()) as $z) {
+				foreach (range(0, $this->size->getX()) as $x) {
 //					foreach ($blockIndicesList as $layerIndex => $layer) {
 //						$layer = reset($layer);//only default
 //						/** @var ListTag $layer */

@@ -4,14 +4,10 @@ declare(strict_types=1);
 
 namespace xenialdan\libstructure;
 
-use muqsit\invmenu\inventories\SingleBlockInventory;
-use muqsit\invmenu\InvMenu;
-use muqsit\invmenu\utils\HolderData;
 use pocketmine\block\Block;
 use pocketmine\math\Vector3;
 use pocketmine\nbt\tag\CompoundTag;
-use pocketmine\network\mcpe\protocol\types\WindowTypes;
-use pocketmine\Player;
+use pocketmine\player\Player;
 use xenialdan\libstructure\tile\StructureBlockTags;
 
 class StructureUI extends SingleBlockInventory
@@ -198,7 +194,6 @@ class StructureUI extends SingleBlockInventory
     public function onFakeBlockDataSendSuccess(Player $player): void
     {
         var_dump($this);
-        parent::onFakeBlockDataSendSuccess($player);
     }
 
     public function getTileId(): string

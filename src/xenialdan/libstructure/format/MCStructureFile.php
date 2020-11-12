@@ -32,6 +32,8 @@ class MCStructureFile
 	public const TAG_PALETTE_BLOCK_PALETTE = 'block_palette';
 	public const TAG_PALETTE_BLOCK_POSITION_DATA = 'block_position_data';
 	public const EXTENSION_MCSTRUCTURE = '.mcstructure';
+	public const LAYER_BLOCKS = 0;
+	public const LAYER_LIQUIDS = 1;
 
 	/**
 	 * Parses a *.mcstructure file

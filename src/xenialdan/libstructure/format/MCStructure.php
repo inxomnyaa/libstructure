@@ -3,8 +3,11 @@
 namespace xenialdan\libstructure\format;
 
 use Exception;
+use Generator;
 use InvalidArgumentException;
+use OutOfBoundsException;
 use OutOfRangeException;
+use pocketmine\block\Block;
 use pocketmine\block\BlockFactory;
 use pocketmine\block\BlockLegacyIds;
 use pocketmine\math\Vector3;
@@ -130,8 +133,33 @@ class MCStructure
 			}
 		}
 		//debug TODO remove
-		foreach ($paletteBlocks->getPalette() as $fullId) var_dump(BlockFactory::getInstance()->fromFullBlock($fullId)->getName());
-		foreach ($paletteLiquids->getPalette() as $fullId) var_dump(BlockFactory::getInstance()->fromFullBlock($fullId)->getName());
+		foreach ($paletteBlocks->getPalette() as $fullId) Server::getInstance()->getLogger()->debug(BlockStatesParser::printStates(BlockStatesParser::getStateByBlock(BlockFactory::getInstance()->fromFullBlock($fullId)), false));
+		foreach ($paletteLiquids->getPalette() as $fullId) Server::getInstance()->getLogger()->debug(BlockStatesParser::printStates(BlockStatesParser::getStateByBlock(BlockFactory::getInstance()->fromFullBlock($fullId)), false));
+		#foreach ($paletteLiquids->getPalette() as $fullId) print BlockFactory::getInstance()->fromFullBlock($fullId)->getName());
+
+		var_dump($paletteBlocks->getBitsPerBlock());
+		$i1 = $paletteLiquids->get(3, 0, 3);
+		var_dump($i1, BlockFactory::getInstance()->fromFullBlock($i1));
+
+		$this->blockLayers = [$paletteBlocks, $paletteLiquids];
+	}
+
+	/**
+	 * @param int $layer Zero = block layer, One = liquid layer
+	 * @return Generator|Block[]
+	 * @throws OutOfBoundsException
+	 */
+	public function iterateBlocks(int $layer = 0): Generator
+	{
+		if ($layer > count($this->blockLayers) || $layer < 0) throw new OutOfBoundsException('Layers must be in range 0...' . count($this->blockLayers));
+		for ($x = 0; $x <= $this->size->getX(); $x++) {
+			for ($y = 0; $y <= $this->size->getY(); $y++) {
+				for ($z = 0; $z <= $this->size->getZ(); $z++) {
+					$fullState = $this->blockLayers[$layer]->get($x, $y, $z);
+					yield API::setComponents(BlockFactory::getInstance()->fromFullBlock($fullState), $x, $y, $z);
+				}
+			}
+		}
 	}
 
 }

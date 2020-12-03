@@ -10,6 +10,7 @@ use OutOfRangeException;
 use pocketmine\block\Block;
 use pocketmine\block\BlockFactory;
 use pocketmine\block\BlockLegacyIds;
+use pocketmine\block\tile\Container;
 use pocketmine\block\tile\Tile;
 use pocketmine\block\tile\TileFactory;
 use pocketmine\math\Vector3;
@@ -230,20 +231,67 @@ class MCStructure
 		}
 	}
 
-	public function translateBlockEntity(Position $position,Vector3 $origin): ?Tile
-	{//TODO offset
+	public function translateBlockEntity(Position $position, Vector3 $origin): ?Tile
+	{
 		$hash = World::blockHash($position->getFloorX(), $position->getFloorY(), $position->getFloorZ());
 		$data = $this->blockEntities[$hash] ?? null;
 		if ($data === null) return null;
-		$tile = TileFactory::getInstance()->createFromData($position->getWorld(), $data);
+		/** @var TileFactory $instance */
+		$instance = TileFactory::getInstance();
+		$data->setInt(Tile::TAG_X, $origin->getFloorX());//why do i have to manually change that before creation.. it won't work after creation
+		$data->setInt(Tile::TAG_Y, $origin->getFloorY());
+		$data->setInt(Tile::TAG_Z, $origin->getFloorZ());
+
+		//hack to fix container items loading
+		if (($inventoryTag = $data->getTag(Container::TAG_ITEMS)) instanceof ListTag) {
+			/** @var CompoundTag $itemNBT */
+			foreach ($inventoryTag as $itemNBT) {
+				$itemNBT->setString("id", $itemNBT->getString("Name", "minecraft:air"));
+				$itemNBT->removeTag("Name");
+				if ($itemNBT->hasTag("tag", CompoundTag::class)) {
+					/** @var CompoundTag $tag */
+					$tag = $itemNBT->getTag("tag", CompoundTag::class);
+					if ($tag->hasTag("Damage")) $tag->removeTag("Damage");
+				}
+			}
+		}
+
+//		$knownTiles = self::readAnyValue(TileFactory::getInstance(), "knownTiles");
+//		$tileId = $data->getString(Tile::TAG_ID, "");
+//
+//		switch ($knownTiles[$tileId] ?? null) {
+//			case Chest::class:
+//			{
+//				if (($inventoryTag = $data->getTag(Container::TAG_ITEMS)) instanceof ListTag) {
+//					/** @var CompoundTag $itemNBT */
+//					foreach ($inventoryTag as $itemNBT) {
+//						$itemNBT->setString("id", $itemNBT->getString("Name", "minecraft:air"));
+//						$itemNBT->removeTag("Name");
+//					}
+//				}
+//			}
+//		}
+
+		$tile = $instance->createFromData($position->getWorld(), $data);
 		if ($tile === null) return null;
-		var_dump($position);
-		$position = $tile->getPos()->asVector3();
-		var_dump($position);
-		$position = $position->subtractVector($this->structure_world_origin)->addVector($origin);
-		var_dump($position);
-		[$tile->getPos()->x, $tile->getPos()->y, $tile->getPos()->z] = [$position->x, $position->y, $position->z];
 		return $tile;
+	}
+
+	/**
+	 * Reads a value of an object, regardless of access modifiers
+	 * @param object $object
+	 * @param string $property
+	 * @return mixed
+	 */
+	public static function &readAnyValue(object $object, string $property)
+	{
+		$invoke = \Closure::bind(function & () use ($property) {
+			return $this->$property;
+		}, $object, $object)->__invoke();
+		/** @noinspection PhpUnnecessaryLocalVariableInspection */
+		$value = &$invoke;
+
+		return $value;
 	}
 
 }

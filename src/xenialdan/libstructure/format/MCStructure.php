@@ -13,6 +13,7 @@ use pocketmine\block\BlockLegacyIds;
 use pocketmine\block\tile\Container;
 use pocketmine\block\tile\Tile;
 use pocketmine\block\tile\TileFactory;
+use pocketmine\block\VanillaBlocks;
 use pocketmine\math\Vector3;
 use pocketmine\nbt\LittleEndianNbtSerializer;
 use pocketmine\nbt\NBT;
@@ -150,7 +151,6 @@ class MCStructure
 		/** @var CompoundTag $blockPositionData */
 		$blockPositionData = $paletteDefaultTag->getCompoundTag(self::TAG_PALETTE_BLOCK_POSITION_DATA);
 		//positions
-		var_dump($this->size);
 		$l = $this->size->getZ();
 		$h = $this->size->getY();
 		foreach (range(0, $this->size->getZ() - 1) as $z) {
@@ -165,7 +165,6 @@ class MCStructure
 //						}
 //					}
 					$offset = (int)(($x * $l * $h) + ($y * $l) + $z);
-					var_dump($offset);
 
 					//block layer
 					/** @var ListTag<IntTag> $tag */
@@ -175,8 +174,6 @@ class MCStructure
 						if (($statesEntry = $paletteArray[$i] ?? null) !== null) {
 							try {
 								$block = $statesEntry->toBlock();
-								#API::setComponents($block, $x, $y, $z);//todo test
-								//todo block_entity_data (tile nbt)
 								$paletteBlocks->set($x, $y, $z, $block->getFullId());
 							} catch (Exception $e) {
 								Server::getInstance()->getLogger()->logException($e);
@@ -190,7 +187,6 @@ class MCStructure
 						if (($statesEntry = $paletteArray[$i] ?? null) !== null) {
 							try {
 								$block = $statesEntry->toBlock();
-								#API::setComponents($block, $x, $y, $z);//todo test
 								$paletteLiquids->set($x, $y, $z, $block->getFullId());
 							} catch (Exception $e) {
 								Server::getInstance()->getLogger()->logException($e);

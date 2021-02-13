@@ -176,7 +176,7 @@ class MCStructure
 								$block = $statesEntry->toBlock();
 								$paletteBlocks->set($x, $y, $z, $block->getFullId());
 							} catch (Exception $e) {
-								Server::getInstance()->getLogger()->logException($e);
+								\GlobalLogger::get()->logException($e);
 							}
 						}
 					}
@@ -189,7 +189,7 @@ class MCStructure
 								$block = $statesEntry->toBlock();
 								$paletteLiquids->set($x, $y, $z, $block->getFullId());
 							} catch (Exception $e) {
-								Server::getInstance()->getLogger()->logException($e);
+								\GlobalLogger::get()->logException($e);
 							}
 						}
 					}
@@ -288,6 +288,22 @@ class MCStructure
 		$value = &$invoke;
 
 		return $value;
+	}
+
+	/**
+	 * @return Vector3
+	 */
+	public function getSize(): Vector3
+	{
+		return $this->size;
+	}
+
+	/**
+	 * @return Vector3
+	 */
+	public function getStructureWorldOrigin(): Vector3
+	{
+		return $this->structure_world_origin;
 	}
 
 }

@@ -2,26 +2,26 @@
 
 namespace xenialdan\libstructure\format;
 
+use Closure;
 use Exception;
 use Generator;
+use GlobalLogger;
 use InvalidArgumentException;
 use OutOfBoundsException;
 use OutOfRangeException;
-use pocketmine\block\Block;
 use pocketmine\block\BlockFactory;
 use pocketmine\block\BlockLegacyIds;
 use pocketmine\block\tile\Container;
 use pocketmine\block\tile\Tile;
 use pocketmine\block\tile\TileFactory;
-use pocketmine\block\VanillaBlocks;
 use pocketmine\math\Vector3;
 use pocketmine\nbt\LittleEndianNbtSerializer;
 use pocketmine\nbt\NBT;
+use pocketmine\nbt\NbtDataException;
 use pocketmine\nbt\tag\CompoundTag;
 use pocketmine\nbt\tag\IntTag;
 use pocketmine\nbt\tag\ListTag;
 use pocketmine\nbt\UnexpectedTagTypeException;
-use pocketmine\Server;
 use pocketmine\utils\Filesystem;
 use pocketmine\utils\TextFormat;
 use pocketmine\world\format\PalettedBlockArray;
@@ -66,6 +66,12 @@ class MCStructure
 	/**
 	 * Parses a *.mcstructure file
 	 * @param string $path path to the .mcstructure file
+	 * @throws InvalidArgumentException
+	 * @throws StructureFileException
+	 * @throws StructureFormatException
+	 * @throws UnexpectedTagTypeException
+	 * @throws UnexpectedValueException
+	 * @throws NbtDataException
 	 * @see MCStructure
 	 */
 	public function parse(string $path): void
@@ -96,7 +102,6 @@ class MCStructure
 	 * @param bool $optional
 	 * @return Vector3
 	 * @throws UnexpectedValueException
-	 * @throws UnexpectedTagTypeException
 	 */
 	private static function parseVec3(CompoundTag $nbt, string $tagName, bool $optional): Vector3
 	{
@@ -176,7 +181,7 @@ class MCStructure
 								$block = $statesEntry->toBlock();
 								$paletteBlocks->set($x, $y, $z, $block->getFullId());
 							} catch (Exception $e) {
-								\GlobalLogger::get()->logException($e);
+								GlobalLogger::get()->logException($e);
 							}
 						}
 					}
@@ -189,7 +194,7 @@ class MCStructure
 								$block = $statesEntry->toBlock();
 								$paletteLiquids->set($x, $y, $z, $block->getFullId());
 							} catch (Exception $e) {
-								\GlobalLogger::get()->logException($e);
+								GlobalLogger::get()->logException($e);
 							}
 						}
 					}
@@ -209,7 +214,7 @@ class MCStructure
 
 	/**
 	 * @param int $layer Zero = block layer, One = liquid layer
-	 * @return Generator|Block[]
+	 * @return Generator
 	 * @throws OutOfBoundsException
 	 */
 	public function blocks(int $layer = 0): Generator
@@ -232,7 +237,6 @@ class MCStructure
 		$hash = World::blockHash($position->getFloorX(), $position->getFloorY(), $position->getFloorZ());
 		$data = $this->blockEntities[$hash] ?? null;
 		if ($data === null) return null;
-		/** @var TileFactory $instance */
 		$instance = TileFactory::getInstance();
 		$data->setInt(Tile::TAG_X, $origin->getFloorX());//why do i have to manually change that before creation.. it won't work after creation
 		$data->setInt(Tile::TAG_Y, $origin->getFloorY());
@@ -281,7 +285,7 @@ class MCStructure
 	 */
 	public static function &readAnyValue(object $object, string $property)
 	{
-		$invoke = \Closure::bind(function & () use ($property) {
+		$invoke = Closure::bind(function & () use ($property) {
 			return $this->$property;
 		}, $object, $object)->__invoke();
 		/** @noinspection PhpUnnecessaryLocalVariableInspection */

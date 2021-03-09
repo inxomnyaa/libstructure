@@ -5,12 +5,13 @@ declare(strict_types=1);
 namespace xenialdan\libstructure\format;
 
 use Generator;
+use InvalidArgumentException;
 use OutOfRangeException;
 use pocketmine\block\Block;
-use pocketmine\item\LegacyStringToItemParser;
 use pocketmine\math\Vector3;
 use pocketmine\nbt\BigEndianNbtSerializer;
 use pocketmine\nbt\NBT;
+use pocketmine\nbt\NbtDataException;
 use pocketmine\nbt\tag\CompoundTag;
 use pocketmine\nbt\tag\IntTag;
 use pocketmine\nbt\tag\ListTag;
@@ -61,7 +62,9 @@ class NBTStructure
 	 * parse parses a schematic from the file passed.
 	 *
 	 * @param string $file
+	 * @throws OutOfRangeException
 	 * @throws StructureFileException
+	 * @throws NbtDataException
 	 */
 	public function parse(string $file): void
 	{
@@ -86,6 +89,8 @@ class NBTStructure
 	/**
 	 * @param ListTag $paletteList
 	 * @return Block[]
+	 * @throws InvalidArgumentException
+	 * @throws \pocketmine\block\utils\InvalidBlockStateException
 	 */
 	private function paletteToBlocks(ListTag $paletteList): array
 	{
@@ -135,8 +140,10 @@ class NBTStructure
 	/**
 	 * returns a generator of blocks found in the schematic opened.
 	 * @param int $palette
-	 * @return Generator|Block[]
+	 * @return Generator
 	 * @throws OutOfRangeException
+	 * @throws InvalidArgumentException
+	 * @throws \pocketmine\block\utils\InvalidBlockStateException
 	 */
 	public function blocks(int $palette = 0): Generator
 	{

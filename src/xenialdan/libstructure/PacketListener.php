@@ -2,69 +2,106 @@
 
 namespace xenialdan\libstructure;
 
+use InvalidArgumentException;
+use pocketmine\block\BlockFactory;
+use pocketmine\block\BlockIdentifier;
+use pocketmine\block\BlockLegacyIds;
+use pocketmine\block\tile\TileFactory;
 use pocketmine\event\Listener;
+use pocketmine\event\player\PlayerInteractEvent;
 use pocketmine\event\server\DataPacketReceiveEvent;
-use pocketmine\network\mcpe\protocol\PacketPool;
-use pocketmine\network\mcpe\protocol\StructureTemplateDataExportRequestPacket;
-use pocketmine\network\mcpe\protocol\StructureTemplateDataExportResponsePacket;
+use pocketmine\item\ItemIds;
+use pocketmine\network\mcpe\protocol\StructureBlockUpdatePacket;
+use pocketmine\network\mcpe\protocol\StructureTemplateDataRequestPacket;
+use pocketmine\network\mcpe\protocol\StructureTemplateDataResponsePacket;
 use pocketmine\plugin\Plugin;
-use pocketmine\Server;
-use xenialdan\libstructure\packet\StructureBlockUpdatePacket;
+use pocketmine\plugin\PluginException;
+use RuntimeException;
+use xenialdan\libstructure\block\StructureBlock;
+use xenialdan\libstructure\tile\StructureBlockTags;
+use xenialdan\libstructure\tile\StructureBlockTile;
+use xenialdan\libstructure\window\StructureBlockInventory;
+use xenialdan\MagicWE2\API;
+use xenialdan\MagicWE2\helper\SessionHelper;
+use xenialdan\MagicWE2\session\data\AssetCollection;
+use xenialdan\MagicWE2\session\UserSession;
 
 class PacketListener implements Listener
 {
-    /** @var Plugin|null */
-    private static $registrant;
+	/** @var Plugin|null */
+	private static $registrant;
 
-    public static function isRegistered(): bool
-    {
-        return self::$registrant instanceof Plugin;
-    }
+	public static function isRegistered(): bool
+	{
+		return self::$registrant instanceof Plugin;
+	}
 
-    public static function getRegistrant(): Plugin
-    {
-        return self::$registrant;
-    }
+	public static function getRegistrant(): Plugin
+	{
+		return self::$registrant;
+	}
 
-    public static function unregister(): void
-    {
-        self::$registrant = null;
-    }
+	public static function unregister(): void
+	{
+		self::$registrant = null;
+	}
 
-    /**
-     * @param Plugin $plugin
-     */
-    public static function register(Plugin $plugin): void
-    {
-        if (self::isRegistered()) {
-            return;//silent return
-        }
+	/**
+	 * @param Plugin $plugin
+	 * @throws PluginException|RuntimeException
+	 */
+	public static function register(Plugin $plugin): void
+	{
+		if (self::isRegistered()) {
+			return;//silent return
+		}
 
-        self::$registrant = $plugin;
-        $plugin->getServer()->getPluginManager()->registerEvents(new self, $plugin);
-        PacketPool::registerPacket(new StructureBlockUpdatePacket());
-    }
+		self::$registrant = $plugin;
+		TileFactory::getInstance()->register(StructureBlockTile::class, [StructureBlockTags::TAG_ID, "minecraft:structure_block"]);
+		try {
+			BlockFactory::getInstance()->register(new StructureBlock(new BlockIdentifier(BlockLegacyIds::STRUCTURE_BLOCK,0, null, StructureBlockTile::class), "Structure Block"));
+		} catch (InvalidArgumentException $e) {
+		}
+		$plugin->getServer()->getPluginManager()->registerEvents(new self, $plugin);
+	}
 
-    public function onDataPacketReceiveEvent(DataPacketReceiveEvent $e)
-    {
-        if ($e->getPacket() instanceof StructureBlockUpdatePacket) $this->onStructureBlockUpdatePacket($e);
-        if ($e->getPacket() instanceof StructureTemplateDataExportRequestPacket) $this->onStructureTemplateDataExportRequestPacket($e);
-        if ($e->getPacket() instanceof StructureTemplateDataExportResponsePacket) $this->onStructureTemplateDataExportResponsePacket($e);
-    }
+	public function onDataPacketReceiveEvent(DataPacketReceiveEvent $e)
+	{
+		if ($e->getPacket() instanceof StructureBlockUpdatePacket) $this->onStructureBlockUpdatePacket($e);
+		if ($e->getPacket() instanceof StructureTemplateDataRequestPacket) $this->onStructureTemplateDataExportRequestPacket($e);
+		if ($e->getPacket() instanceof StructureTemplateDataResponsePacket) $this->onStructureTemplateDataExportResponsePacket($e);
+	}
 
-    private function onStructureBlockUpdatePacket(DataPacketReceiveEvent $e)
-    {
-        if (!($pk = $e->getPacket()) instanceof StructureBlockUpdatePacket) throw new \InvalidArgumentException(get_class($pk) . " is not a " . StructureBlockUpdatePacket::class);
-        /** @var StructureBlockUpdatePacket $pk */
-        var_dump($e->getPacket());
-    }
+	private function onStructureBlockUpdatePacket(DataPacketReceiveEvent $e)
+	{
+		if (!($pk = $e->getPacket()) instanceof StructureBlockUpdatePacket) return;
+		/** @var StructureBlockUpdatePacket $pk */
+		var_dump($e->getPacket());//TODO remove
+		$session = $e->getOrigin();
+		$window = $session->getInvManager()->getWindow($session->getInvManager()->getCurrentWindowId());
+		//Hack to close the inventory (client does not send inventory close packet for structure blocks)
+		if($window instanceof StructureBlockInventory){
+			$session->getPlayer()->removeCurrentWindow();
+		}
+	}
 
-    private function onStructureTemplateDataExportRequestPacket(DataPacketReceiveEvent $e)
-    {
-    }
+	private function onStructureTemplateDataExportRequestPacket(DataPacketReceiveEvent $e)
+	{
+		/** @var StructureTemplateDataRequestPacket $pk */
+		$pk = $e->getPacket();
+		$player = $e->getOrigin()->getPlayer();
+		if ($pk instanceof StructureTemplateDataRequestPacket) {
+			var_dump($pk);//TODO remove
+		}
+	}
 
-    private function onStructureTemplateDataExportResponsePacket(DataPacketReceiveEvent $e)
-    {
-    }
-
+	private function onStructureTemplateDataExportResponsePacket(DataPacketReceiveEvent $e)
+	{
+		/** @var StructureTemplateDataResponsePacket $pk */
+		$pk = $e->getPacket();
+		$player = $e->getOrigin()->getPlayer();
+		if ($pk instanceof StructureTemplateDataResponsePacket) {
+			var_dump($pk);//TODO remove
+		}
+	}
 }

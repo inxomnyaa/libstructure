@@ -199,7 +199,7 @@ class MCStructure
 						}
 					}
 					//nbt
-					if ($blockPositionData->hasTag((string)$offset)) {
+					if ($blockPositionData->getTag((string)$offset) !== null) {
 						/** @var CompoundTag<CompoundTag> $tag1 */
 						$tag1 = $blockPositionData->getCompoundTag((string)$offset);
 						$blockEntities[World::blockHash($x, $y, $z)] = $tag1->getCompoundTag(self::TAG_PALETTE_BLOCK_ENTITY_DATA);
@@ -248,10 +248,10 @@ class MCStructure
 			foreach ($inventoryTag as $itemNBT) {
 				$itemNBT->setString("id", $itemNBT->getString("Name", "minecraft:air"));
 				$itemNBT->removeTag("Name");
-				if ($itemNBT->hasTag("tag", CompoundTag::class)) {
+				if ($itemNBT->getTag("tag", CompoundTag::class) !== null) {
 					/** @var CompoundTag $tag */
 					$tag = $itemNBT->getTag("tag", CompoundTag::class);
-					if ($tag->hasTag("Damage")) $tag->removeTag("Damage");
+					if ($tag->getTag("Damage") !== null) $tag->removeTag("Damage");
 				}
 			}
 		}

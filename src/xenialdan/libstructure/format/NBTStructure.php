@@ -104,15 +104,15 @@ class NBTStructure
 			$properties = $blockCompound->getCompoundTag('Properties');
 			if ($properties instanceof CompoundTag)
 				//Java/legacy hack
-				/*if($properties->hasTag('dataID')){
+				/*if($properties->getTag('dataID') !== null){
 					$legacyDataId = $properties->getInt('dataID');
 					//Block::getStateFromLegacyData
 				} else{
-					if($properties->hasTag('half')){
+					if($properties->getTag('half') !== null){
 						$legacyHalf = $properties->getString('half');
 						//LegacyStructureTemplate::_mapToProperty(&v99, v19, v65);
 					}
-					if($properties->hasTag('waterlogged')){
+					if($properties->getTag('waterlogged') !== null){
 						$legacyWaterlogged = $properties->getString('waterlogged');
 						//LegacyStructureTemplate::_mapPropertyToExtraBlock(&v97, v20);
 					}

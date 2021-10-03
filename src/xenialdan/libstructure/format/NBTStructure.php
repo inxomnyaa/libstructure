@@ -18,6 +18,7 @@ use pocketmine\nbt\tag\ListTag;
 use pocketmine\nbt\tag\StringTag;
 use xenialdan\libstructure\exception\StructureFileException;
 use xenialdan\MagicWE2\exception\InvalidBlockStateException;
+use xenialdan\MagicWE2\helper\BlockQuery;
 use xenialdan\MagicWE2\helper\BlockStatesParser;
 use xenialdan\MagicWE2\Loader;
 use function file_get_contents;
@@ -26,17 +27,17 @@ use function zlib_decode;
 class NBTStructure
 {
 	/** @var int */
-	private $version;
+	private int $version;
 	/** @var string */
-	private $author;
+	private string $author;
 	/** @var Vector3 */
-	private $size;
+	private Vector3 $size;
 	/** @var ListTag<CompoundTag> */
-	private $palettes;
+	private ListTag $palettes;
 	/** @var ListTag<CompoundTag> */
-	private $blocks;
+	private ListTag $blocks;
 	/** @var ListTag<CompoundTag> */
-	private $entities;
+	private ListTag $entities;
 
 	/**
 	 * save saves a schematic to disk.
@@ -128,7 +129,7 @@ class NBTStructure
 					$states[] = $name . '=' . $valueString;
 				}
 			try {
-				$fromString = BlockStatesParser::fromString($id . '[' . implode(',', $states) . ']');
+				$fromString = BlockStatesParser::fromString(BlockQuery::fromString($id . '[' . implode(',', $states) . ']'));
 			} catch (InvalidBlockStateException $e) {
 				Loader::getInstance()->getLogger()->logException($e);
 			}
@@ -155,7 +156,7 @@ class NBTStructure
 			/** @var ListTag<IntTag> $pos */
 			$pos = $blockTag->getListTag("pos");
 			$block = $blockPalette[$blockTag->getInt('state')];
-			[$block->getPos()->x, $block->getPos()->y, $block->getPos()->z] = [$pos->get(0)->getValue(), $pos->get(1)->getValue(), $pos->get(2)->getValue()];
+			[$block->getPosition()->x, $block->getPosition()->y, $block->getPosition()->z] = [$pos->get(0)->getValue(), $pos->get(1)->getValue(), $pos->get(2)->getValue()];
 			yield $block;
 		}
 	}

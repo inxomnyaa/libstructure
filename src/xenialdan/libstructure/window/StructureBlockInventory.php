@@ -5,12 +5,16 @@ declare(strict_types=1);
 namespace xenialdan\libstructure\window;
 
 use pocketmine\block\inventory\BlockInventory;
+use pocketmine\block\inventory\BlockInventoryTrait;
+use pocketmine\inventory\SimpleInventory;
 use pocketmine\world\Position;
 
-class StructureBlockInventory extends BlockInventory
+class StructureBlockInventory extends SimpleInventory implements BlockInventory
 {
-	public function __construct(Position $position)
+	use BlockInventoryTrait;
+	public function __construct(Position $holder)
 	{
-		parent::__construct($position, 0);
+		$this->holder = $holder;
+		parent::__construct(0);
 	}
 }

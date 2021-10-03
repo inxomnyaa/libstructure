@@ -41,12 +41,12 @@ class StructureBlock extends Block
 	public function onInteract(Item $item, int $face, Vector3 $clickVector, ?Player $player = null): bool
 	{
 		if ($player instanceof Player) {
-			$structureBlock = $this->pos->getWorld()->getTile($this->pos);
+			$structureBlock = $this->position->getWorld()->getTile($this->position);
 			if ($structureBlock instanceof TileStructureBlock/* and $player->isCreative(true)*/) {
 				$player->setCurrentWindow($structureBlock->getInventory());
 				//TODO remove once PMMP allows injecting to InventoryManager::createContainerOpen
 				$id = $player->getNetworkSession()->getInvManager()->getCurrentWindowId();
-				$pk = ContainerOpenPacket::blockInvVec3($id, WindowTypes::STRUCTURE_EDITOR, $this->pos->asVector3());
+				$pk = ContainerOpenPacket::blockInvVec3($id, WindowTypes::STRUCTURE_EDITOR, $this->position->asVector3());
 				$player->getNetworkSession()->sendDataPacket($pk);
 			} else {
 				var_dump("not tile", $structureBlock);

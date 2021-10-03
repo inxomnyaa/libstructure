@@ -8,9 +8,7 @@ use pocketmine\block\BlockIdentifier;
 use pocketmine\block\BlockLegacyIds;
 use pocketmine\block\tile\TileFactory;
 use pocketmine\event\Listener;
-use pocketmine\event\player\PlayerInteractEvent;
 use pocketmine\event\server\DataPacketReceiveEvent;
-use pocketmine\item\ItemIds;
 use pocketmine\network\mcpe\protocol\StructureBlockUpdatePacket;
 use pocketmine\network\mcpe\protocol\StructureTemplateDataRequestPacket;
 use pocketmine\network\mcpe\protocol\StructureTemplateDataResponsePacket;
@@ -21,15 +19,11 @@ use xenialdan\libstructure\block\StructureBlock;
 use xenialdan\libstructure\tile\StructureBlockTags;
 use xenialdan\libstructure\tile\StructureBlockTile;
 use xenialdan\libstructure\window\StructureBlockInventory;
-use xenialdan\MagicWE2\API;
-use xenialdan\MagicWE2\helper\SessionHelper;
-use xenialdan\MagicWE2\session\data\AssetCollection;
-use xenialdan\MagicWE2\session\UserSession;
 
 class PacketListener implements Listener
 {
 	/** @var Plugin|null */
-	private static $registrant;
+	private static ?Plugin $registrant = null;
 
 	public static function isRegistered(): bool
 	{
@@ -57,10 +51,10 @@ class PacketListener implements Listener
 		}
 
 		self::$registrant = $plugin;
-		TileFactory::getInstance()->register(StructureBlockTile::class, [StructureBlockTags::TAG_ID, "minecraft:structure_block"]);
 		try {
-			BlockFactory::getInstance()->register(new StructureBlock(new BlockIdentifier(BlockLegacyIds::STRUCTURE_BLOCK,0, null, StructureBlockTile::class), "Structure Block"));
-		} catch (InvalidArgumentException $e) {
+			TileFactory::getInstance()->register(StructureBlockTile::class, [StructureBlockTags::TAG_ID, "minecraft:structure_block"]);
+			BlockFactory::getInstance()->register(new StructureBlock(new BlockIdentifier(BlockLegacyIds::STRUCTURE_BLOCK,0, null, StructureBlockTile::class), "Structure Block"), true);
+		} catch (InvalidArgumentException) {
 		}
 		$plugin->getServer()->getPluginManager()->registerEvents(new self, $plugin);
 	}
@@ -74,8 +68,8 @@ class PacketListener implements Listener
 
 	private function onStructureBlockUpdatePacket(DataPacketReceiveEvent $e)
 	{
-		if (!($pk = $e->getPacket()) instanceof StructureBlockUpdatePacket) return;
-		/** @var StructureBlockUpdatePacket $pk */
+		if (!$e->getPacket() instanceof StructureBlockUpdatePacket) return;
+		//** @var StructureBlockUpdatePacket $pk */
 		var_dump($e->getPacket());//TODO remove
 		$session = $e->getOrigin();
 		$window = $session->getInvManager()->getWindow($session->getInvManager()->getCurrentWindowId());
@@ -89,7 +83,7 @@ class PacketListener implements Listener
 	{
 		/** @var StructureTemplateDataRequestPacket $pk */
 		$pk = $e->getPacket();
-		$player = $e->getOrigin()->getPlayer();
+		#$player = $e->getOrigin()->getPlayer();
 		if ($pk instanceof StructureTemplateDataRequestPacket) {
 			var_dump($pk);//TODO remove
 		}
@@ -99,7 +93,7 @@ class PacketListener implements Listener
 	{
 		/** @var StructureTemplateDataResponsePacket $pk */
 		$pk = $e->getPacket();
-		$player = $e->getOrigin()->getPlayer();
+		#$player = $e->getOrigin()->getPlayer();
 		if ($pk instanceof StructureTemplateDataResponsePacket) {
 			var_dump($pk);//TODO remove
 		}

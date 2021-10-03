@@ -38,8 +38,8 @@ class StructureBlockTile extends Spawnable implements Nameable, InventoryHolder
 	{
 		var_dump("constructing tile");
 		parent::__construct($world, $pos);
-		$this->fromV3 = $this->toV3 = $this->pos->asVector3();
-		$this->inventory = new StructureBlockInventory($this->pos);
+		$this->fromV3 = $this->toV3 = $this->position->asVector3();
+		$this->inventory = new StructureBlockInventory($this->position);
 		var_dump("constructing tile done");
 	}
 
@@ -69,7 +69,7 @@ class StructureBlockTile extends Spawnable implements Nameable, InventoryHolder
 	/**
 	 * @return StructureBlockInventory
 	 */
-	public function getInventory()
+	public function getInventory(): StructureBlockInventory
 	{
 		return $this->inventory;
 	}
@@ -171,11 +171,11 @@ class StructureBlockTile extends Spawnable implements Nameable, InventoryHolder
 
 	protected function addStructureBlockData(CompoundTag $nbt): void
 	{
-		$pos = $this->getPos();
+		$pos = $this->getPosition();
 		$offset = $this->calculateOffset($pos->asVector3());
 		$size = $this->calculateSize();
 		var_dump("offset", $offset, "size", $size, "blockV3", $pos->asVector3());
-		$nbt->setInt("data", (int)$this->mode);
+		$nbt->setInt("data", $this->mode);
 		$nbt->setString("dataField", "");
 		$nbt->setByte("ignoreEntities", $this->showEntities ? 0 : 1);
 		$nbt->setByte("includePlayers", $this->showPlayers ? 1 : 0);

@@ -51,17 +51,17 @@ class MCStructure
 	public const LAYER_BLOCKS = 0;
 	public const LAYER_LIQUIDS = 1;
 	/** @var Vector3 */
-	private $structure_world_origin;
+	private Vector3 $structure_world_origin;
 	/** @var int */
-	private $format_version;
+	private int $format_version;
 	/** @var Vector3 */
-	private $size;
+	private Vector3 $size;
 	/** @var PalettedBlockArray[] */
-	private $blockLayers = [];
+	private array $blockLayers = [];
 	/** @var array|CompoundTag[] */
-	private $entities = [];
+	private array $entities = [];
 	/** @var array|CompoundTag[] */
-	private $blockEntities = [];
+	private array $blockEntities = [];
 
 	/**
 	 * Parses a *.mcstructure file
@@ -123,7 +123,7 @@ class MCStructure
 	private function parseStructure(CompoundTag $structure): void
 	{
 		$blockIndicesList = $structure->getListTag('block_indices');//list<list<int>>
-		$entitiesList = $structure->getListTag('entities');
+		#$entitiesList = $structure->getListTag('entities');
 		#var_dump($entitiesList->toString(2));
 		$paletteCompound = $structure->getCompoundTag('palette');
 		#$this->parseEntities($entitiesList);//TODO
@@ -170,10 +170,12 @@ class MCStructure
 //						}
 //					}
 					$offset = (int)(($x * $l * $h) + ($y * $l) + $z);
+					/** @var ListTag<IntTag> $tag */
+					if(!$tag instanceof ListTag) continue;
 
 					//block layer
-					/** @var ListTag<IntTag> $tag */
-					$tag = $blockIndicesList->get(0);
+					if($blockIndicesList->isset(0)){
+						$tag = $blockIndicesList->get(0);
 					$blockLayer = $tag->getAllValues();
 					if (($i = $blockLayer[$offset] ?? -1) !== -1) {
 						if (($statesEntry = $paletteArray[$i] ?? null) !== null) {
@@ -184,8 +186,9 @@ class MCStructure
 								GlobalLogger::get()->logException($e);
 							}
 						}
-					}
+					}}
 					//liquid layer
+					if($blockIndicesList->isset(1)){
 					$tag = $blockIndicesList->get(1);
 					$liquidLayer = $tag->getAllValues();
 					if (($i = $liquidLayer[$offset] ?? -1) !== -1) {
@@ -197,7 +200,7 @@ class MCStructure
 								GlobalLogger::get()->logException($e);
 							}
 						}
-					}
+					}}
 					//nbt
 					if ($blockPositionData->getTag((string)$offset) !== null) {
 						/** @var CompoundTag<CompoundTag> $tag1 */
@@ -225,7 +228,7 @@ class MCStructure
 				for ($z = 0; $z < $this->size->getZ(); $z++) {
 					$fullState = $this->blockLayers[$layer]->get($x, $y, $z);
 					$block = BlockFactory::getInstance()->fromFullBlock($fullState);
-					[$block->getPos()->x, $block->getPos()->y, $block->getPos()->z] = [$x, $y, $z];
+					[$block->getPosition()->x, $block->getPosition()->y, $block->getPosition()->z] = [$x, $y, $z];
 					yield $block;
 				}
 			}
@@ -248,9 +251,9 @@ class MCStructure
 			foreach ($inventoryTag as $itemNBT) {
 				$itemNBT->setString("id", $itemNBT->getString("Name", "minecraft:air"));
 				$itemNBT->removeTag("Name");
-				if ($itemNBT->getTag("tag", CompoundTag::class) !== null) {
+				if ($itemNBT->getCompoundTag("tag") !== null) {
 					/** @var CompoundTag $tag */
-					$tag = $itemNBT->getTag("tag", CompoundTag::class);
+					$tag = $itemNBT->getCompoundTag("tag");
 					if ($tag->getTag("Damage") !== null) $tag->removeTag("Damage");
 				}
 			}
@@ -283,7 +286,7 @@ class MCStructure
 	 * @param string $property
 	 * @return mixed
 	 */
-	public static function &readAnyValue(object $object, string $property)
+	public static function &readAnyValue(object $object, string $property): mixed
 	{
 		$invoke = Closure::bind(function & () use ($property) {
 			return $this->$property;

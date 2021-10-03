@@ -62,15 +62,15 @@ class PacketListener implements Listener
 	public function onDataPacketReceiveEvent(DataPacketReceiveEvent $e)
 	{
 		if ($e->getPacket() instanceof StructureBlockUpdatePacket) $this->onStructureBlockUpdatePacket($e);
-		if ($e->getPacket() instanceof StructureTemplateDataRequestPacket) $this->onStructureTemplateDataExportRequestPacket($e);
-		if ($e->getPacket() instanceof StructureTemplateDataResponsePacket) $this->onStructureTemplateDataExportResponsePacket($e);
+		//if ($e->getPacket() instanceof StructureTemplateDataRequestPacket) $this->onStructureTemplateDataExportRequestPacket($e);
+		//if ($e->getPacket() instanceof StructureTemplateDataResponsePacket) $this->onStructureTemplateDataExportResponsePacket($e);
 	}
 
 	private function onStructureBlockUpdatePacket(DataPacketReceiveEvent $e)
 	{
 		if (!$e->getPacket() instanceof StructureBlockUpdatePacket) return;
 		//** @var StructureBlockUpdatePacket $pk */
-		var_dump($e->getPacket());//TODO remove
+		#var_dump($e->getPacket());//TODO remove
 		$session = $e->getOrigin();
 		$window = $session->getInvManager()->getWindow($session->getInvManager()->getCurrentWindowId());
 		//Hack to close the inventory (client does not send inventory close packet for structure blocks)

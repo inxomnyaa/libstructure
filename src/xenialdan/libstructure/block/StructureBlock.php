@@ -42,14 +42,12 @@ class StructureBlock extends Block
 	{
 		if ($player instanceof Player) {
 			$structureBlock = $this->position->getWorld()->getTile($this->position);
-			if ($structureBlock instanceof TileStructureBlock/* and $player->isCreative(true)*/) {
+			if ($structureBlock instanceof TileStructureBlock and $player->isCreative(true)) {
 				$player->setCurrentWindow($structureBlock->getInventory());
 				//TODO remove once PMMP allows injecting to InventoryManager::createContainerOpen
 				$id = $player->getNetworkSession()->getInvManager()->getCurrentWindowId();
 				$pk = ContainerOpenPacket::blockInvVec3($id, WindowTypes::STRUCTURE_EDITOR, $this->position->asVector3());
 				$player->getNetworkSession()->sendDataPacket($pk);
-			} else {
-				var_dump("not tile", $structureBlock);
 			}
 		}
 

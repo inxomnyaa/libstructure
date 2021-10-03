@@ -35,18 +35,15 @@ class StructureBlockTile extends Spawnable implements Nameable, InventoryHolder
 
 	public function __construct(World $world, Vector3 $pos)
 	{
-		var_dump("constructing tile");
 		parent::__construct($world, $pos);
 		$this->fromV3 = $this->toV3 = $this->position->asVector3();
 		$this->inventory = new StructureBlockInventory($this->position);
-		var_dump("constructing tile done");
 	}
 
 	public function readSaveData(CompoundTag $nbt): void
 	{
 		//todo read structure block data
 		$this->loadName($nbt);
-		var_dump(__METHOD__);
 	}
 
 	protected function writeSaveData(CompoundTag $nbt): void
@@ -55,14 +52,12 @@ class StructureBlockTile extends Spawnable implements Nameable, InventoryHolder
 		$this->addStructureBlockData($nbt);
 		$nbt->setInt(StructureBlockTags::TAG_DATA, $this->mode);
 		$this->saveName($nbt);
-		var_dump(__METHOD__);
 	}
 
 	protected function addAdditionalSpawnData(CompoundTag $nbt): void
 	{
 		$this->addStructureBlockData($nbt);
 		$this->addNameSpawnData($nbt);
-		var_dump($nbt->toString());
 	}
 
 	/**
@@ -197,7 +192,7 @@ class StructureBlockTile extends Spawnable implements Nameable, InventoryHolder
 		$pos = $this->getPosition();
 		$offset = $this->calculateOffset($pos->asVector3());
 		$size = $this->calculateSize();
-		var_dump("offset", $offset, "size", $size, "blockV3", $pos->asVector3());
+		#var_dump("offset", $offset, "size", $size, "blockV3", $pos->asVector3());
 		$nbt->setInt("data", $this->mode);
 		$nbt->setString("dataField", "");
 		$nbt->setByte("ignoreEntities", $this->showEntities ? 0 : 1);
@@ -220,7 +215,6 @@ class StructureBlockTile extends Spawnable implements Nameable, InventoryHolder
 		$nbt->setInt("z", (int)$pos->z);
 		$nbt->setInt("zStructureOffset", (int)$offset->z);
 		$nbt->setInt("zStructureSize", (int)$size->z);
-		var_dump($nbt->toString());
 	}
 
 	/**

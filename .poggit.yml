@@ -4,4 +4,8 @@ projects:
     path: ""
     model: virion
     type: library
+    libs:
+      - src: thebigsmilexd/libblockstate/libblockstate
+        version: ^0.0.0
+        branch: master
 ...

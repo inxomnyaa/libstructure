@@ -22,16 +22,19 @@ use pocketmine\nbt\tag\CompoundTag;
 use pocketmine\nbt\tag\IntTag;
 use pocketmine\nbt\tag\ListTag;
 use pocketmine\nbt\UnexpectedTagTypeException;
+use pocketmine\Server;
 use pocketmine\utils\Filesystem;
 use pocketmine\utils\TextFormat;
 use pocketmine\world\format\PalettedBlockArray;
 use pocketmine\world\Position;
 use pocketmine\world\World;
+use RuntimeException;
 use UnexpectedValueException;
+use xenialdan\libblockstate\BlockState;
+use xenialdan\libblockstate\BlockStatesParser;
+use xenialdan\libblockstate\exception\BlockQueryParsingFailedException;
 use xenialdan\libstructure\exception\StructureFileException;
 use xenialdan\libstructure\exception\StructureFormatException;
-use xenialdan\MagicWE2\helper\BlockStatesEntry;
-use xenialdan\MagicWE2\helper\BlockStatesParser;
 
 class MCStructure
 {
@@ -101,7 +104,7 @@ class MCStructure
 	 * @param string $tagName
 	 * @param bool $optional
 	 * @return Vector3
-	 * @throws UnexpectedValueException
+	 * @throws UnexpectedValueException|UnexpectedTagTypeException
 	 */
 	private static function parseVec3(CompoundTag $nbt, string $tagName, bool $optional): Vector3
 	{
@@ -135,6 +138,8 @@ class MCStructure
 	 * @param ListTag<ListTag<IntTag>>|null $blockIndicesList
 	 * @throws InvalidArgumentException
 	 * @throws OutOfRangeException
+	 * @throws UnexpectedTagTypeException
+	 * @throws RuntimeException
 	 */
 	private function parseBlockLayers(?CompoundTag $paletteCompound, ?ListTag $blockIndicesList): void
 	{
@@ -145,13 +150,17 @@ class MCStructure
 		$paletteBlocks = new PalettedBlockArray(BlockLegacyIds::AIR << 4);
 		$paletteLiquids = new PalettedBlockArray(BlockLegacyIds::AIR << 4);
 		$blockEntities = [];
-		/** @var BlockStatesEntry[] $paletteArray */
+		/** @var BlockState[] $paletteArray */
 		$paletteArray = [];
 		/** @var CompoundTag $blockCompoundTag */
 		foreach ($paletteDefaultTag->getListTag(self::TAG_PALETTE_BLOCK_PALETTE) as $paletteIndex => $blockCompoundTag) {
-			$blockState = BlockStatesParser::getInstance()::getStateByCompound($blockCompoundTag);
-			if ($blockState instanceof BlockStatesEntry) $paletteArray[$paletteIndex] = $blockState;
-			else print TextFormat::RED . $blockCompoundTag . " is not BlockStatesEntry";
+			try {
+				$blockState = BlockStatesParser::getInstance()->getFromCompound($blockCompoundTag);
+				if ($blockState instanceof BlockState) $paletteArray[$paletteIndex] = $blockState;
+				else print TextFormat::RED . $blockCompoundTag . " is not BlockState";
+			} catch (BlockQueryParsingFailedException $e) {
+				Server::getInstance()->getLogger()->logException($e);
+			}
 		}
 		/** @var CompoundTag $blockPositionData */
 		$blockPositionData = $paletteDefaultTag->getCompoundTag(self::TAG_PALETTE_BLOCK_POSITION_DATA);
@@ -173,6 +182,7 @@ class MCStructure
 					/** @var ListTag<IntTag> $tag */
 					if(!$tag instanceof ListTag) continue;
 
+					//TODO support more layers
 					//block layer
 					if($blockIndicesList->isset(0)){
 						$tag = $blockIndicesList->get(0);
@@ -180,8 +190,7 @@ class MCStructure
 					if (($i = $blockLayer[$offset] ?? -1) !== -1) {
 						if (($statesEntry = $paletteArray[$i] ?? null) !== null) {
 							try {
-								$block = $statesEntry->toBlock();
-								$paletteBlocks->set($x, $y, $z, $block->getFullId());
+								$paletteBlocks->set($x, $y, $z, $statesEntry->getFullId());
 							} catch (Exception $e) {
 								GlobalLogger::get()->logException($e);
 							}
@@ -194,8 +203,7 @@ class MCStructure
 					if (($i = $liquidLayer[$offset] ?? -1) !== -1) {
 						if (($statesEntry = $paletteArray[$i] ?? null) !== null) {
 							try {
-								$block = $statesEntry->toBlock();
-								$paletteLiquids->set($x, $y, $z, $block->getFullId());
+								$paletteLiquids->set($x, $y, $z, $statesEntry->getFullId());
 							} catch (Exception $e) {
 								GlobalLogger::get()->logException($e);
 							}
@@ -275,6 +283,7 @@ class MCStructure
 //			}
 //		}
 
+		/** @noinspection PhpInternalEntityUsedInspection */
 		$tile = $instance->createFromData($position->getWorld(), $data);
 		if ($tile === null) return null;
 		return $tile;
@@ -297,20 +306,19 @@ class MCStructure
 		return $value;
 	}
 
-	/**
-	 * @return Vector3
-	 */
 	public function getSize(): Vector3
 	{
 		return $this->size;
 	}
 
-	/**
-	 * @return Vector3
-	 */
 	public function getStructureWorldOrigin(): Vector3
 	{
 		return $this->structure_world_origin;
+	}
+
+	public function getFormatVersion(): int
+	{
+		return $this->format_version;
 	}
 
 }

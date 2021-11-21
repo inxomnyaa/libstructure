@@ -10,6 +10,7 @@ use pocketmine\block\tile\Spawnable;
 use pocketmine\inventory\InventoryHolder;
 use pocketmine\math\Vector3;
 use pocketmine\nbt\tag\CompoundTag;
+use pocketmine\network\mcpe\protocol\types\BlockPosition;
 use pocketmine\network\mcpe\protocol\types\StructureEditorData;
 use pocketmine\network\mcpe\protocol\types\StructureSettings;
 use pocketmine\world\World;
@@ -276,15 +277,11 @@ class StructureBlockTile extends Spawnable implements Nameable, InventoryHolder
 		$settings->paletteName = "default";
 		$settings->ignoreEntities = !$this->isShowEntities();
 		$settings->ignoreBlocks = !$this->isShowBlocks();
-		$settings->structureSizeX = $size->getFloorX();
-		$settings->structureSizeY = $size->getFloorY();
-		$settings->structureSizeZ = $size->getFloorZ();
-		$settings->structureOffsetX = 0;
-		$settings->structureOffsetY = 0;
-		$settings->structureOffsetZ = 0;//TODO position
+		$settings->dimensions = BlockPosition::fromVector3($size);
+		$settings->offset = new BlockPosition(0,0,0);//TODO position
 		$settings->lastTouchedByPlayerID = -1;
 		$settings->rotation = 0;
-		$settings->mirror = false;
+		$settings->mirror = 0;
 		$settings->integrityValue = 1.0;
 		$settings->integritySeed = 0;
 		$settings->pivot = $origin;

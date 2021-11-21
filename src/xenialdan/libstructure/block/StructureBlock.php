@@ -10,6 +10,7 @@ use pocketmine\block\BlockIdentifier;
 use pocketmine\item\Item;
 use pocketmine\math\Vector3;
 use pocketmine\network\mcpe\protocol\ContainerOpenPacket;
+use pocketmine\network\mcpe\protocol\types\BlockPosition;
 use pocketmine\network\mcpe\protocol\types\inventory\WindowTypes;
 use pocketmine\network\mcpe\protocol\types\StructureEditorData;
 use pocketmine\player\Player;
@@ -46,7 +47,7 @@ class StructureBlock extends Block
 				$player->setCurrentWindow($structureBlock->getInventory());
 				//TODO remove once PMMP allows injecting to InventoryManager::createContainerOpen
 				$id = $player->getNetworkSession()->getInvManager()->getCurrentWindowId();
-				$pk = ContainerOpenPacket::blockInvVec3($id, WindowTypes::STRUCTURE_EDITOR, $this->position->asVector3());
+				$pk = ContainerOpenPacket::blockInv($id, WindowTypes::STRUCTURE_EDITOR, BlockPosition::fromVector3($this->position->asVector3()));
 				$player->getNetworkSession()->sendDataPacket($pk);
 			}
 		}

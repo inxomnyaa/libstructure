@@ -28,8 +28,7 @@ use xenialdan\libstructure\exception\StructureFileException;
 use function file_get_contents;
 use function zlib_decode;
 
-class NBTStructure
-{
+class NBTStructure{
 	private int $version;
 	private string $author;
 	private Vector3 $size;
@@ -45,7 +44,7 @@ class NBTStructure
 	 *
 	 * @param string $file the Schematic output file name
 	 */
-	public function save(string $file): void//TODO
+	public function save(string $file) : void//TODO
 	{
 //		$nbt = new TreeRoot(
 //			CompoundTag::create()
@@ -64,13 +63,13 @@ class NBTStructure
 	 * parse parses a schematic from the file passed.
 	 *
 	 * @param string $file
+	 *
 	 * @throws OutOfRangeException
 	 * @throws StructureFileException
 	 * @throws NbtDataException
 	 * @throws UnexpectedTagTypeException
 	 */
-	public function parse(string $file): void
-	{
+	public function parse(string $file) : void{
 		$nbt = (new BigEndianNbtSerializer())->read(zlib_decode(file_get_contents($file)));
 		$nbt = $nbt->getTag();
 		/** @var CompoundTag $nbt */
@@ -91,25 +90,25 @@ class NBTStructure
 
 	/**
 	 * @param ListTag $paletteList
+	 *
 	 * @return Block[]
 	 * @throws RuntimeException
 	 * @throws UnexpectedTagTypeException
 	 * @throws BlockQueryParsingFailedException
 	 * @throws BlockStateNotFoundException
 	 */
-	private function paletteToBlocks(ListTag $paletteList): array
-	{
+	private function paletteToBlocks(ListTag $paletteList) : array{
 		/** @var BlockStatesParser $blockStatesParser */
 		$blockStatesParser = BlockStatesParser::getInstance();
 		/** @var Block[] $blocks */
 		$blocks = [];
 		/** @var CompoundTag $blockCompound */
-		foreach ($paletteList/*->getValue()*/ as $blockCompound) {
+		foreach($paletteList/*->getValue()*/ as $blockCompound){
 			$id = $blockCompound->getString('Name');
 			$states = [];
 			/** @var CompoundTag<StringTag> $properties */
 			$properties = $blockCompound->getCompoundTag('Properties');
-			if ($properties instanceof CompoundTag)
+			if($properties instanceof CompoundTag)
 				//Java/legacy hack
 				/*if($properties->getTag('dataID') !== null){
 					$legacyDataId = $properties->getInt('dataID');
@@ -127,16 +126,16 @@ class NBTStructure
 				}*///TODO java fixes
 
 				/**
-				 * @var string $name
+				 * @var string    $name
 				 * @var StringTag $value
 				 */
-				foreach ($properties->getValue() as $name => $value) {
-					$valueString = (string)$value->getValue();
+				foreach($properties->getValue() as $name => $value){
+					$valueString = (string) $value->getValue();
 					$states[] = $name . '=' . $valueString;
 				}
-			try {
+			try{
 				$blocks[] = $blockStatesParser->parseQuery(BlockQuery::fromString($id . '[' . implode(',', $states) . ']'))->getBlock();
-			} catch (InvalidBlockStateException $e) {
+			}catch(InvalidBlockStateException $e){
 				Server::getInstance()->getLogger()->logException($e);
 			}
 		}
@@ -145,7 +144,9 @@ class NBTStructure
 
 	/**
 	 * returns a generator of blocks found in the schematic opened.
+	 *
 	 * @param int $layer
+	 *
 	 * @return Generator
 	 * @throws OutOfRangeException
 	 * @throws InvalidArgumentException
@@ -153,13 +154,12 @@ class NBTStructure
 	 * @throws UnexpectedTagTypeException
 	 * @throws RuntimeException
 	 */
-	public function blocks(int $layer = 0): Generator
-	{
+	public function blocks(int $layer = 0) : Generator{
 		/** @var ListTag $paletteList */
 		$paletteList = $this->palettes->get($layer);
 		$blockPalette = $this->paletteToBlocks($paletteList);
 		/** @var CompoundTag $blockTag */
-		foreach ($this->blocks as $blockTag) {
+		foreach($this->blocks as $blockTag){
 			/** @var ListTag<IntTag> $pos */
 			$pos = $blockTag->getListTag("pos");
 			$block = $blockPalette[$blockTag->getInt('state')];
@@ -236,23 +236,19 @@ class NBTStructure
 //		}
 //	}
 
-	protected function blockIndex(int $x, int $y, int $z): int
-	{
+	protected function blockIndex(int $x, int $y, int $z) : int{
 		return ($y * $this->size->getZ() + $z) * $this->size->getX() + $x;
 	}
 
-	public function getVersion(): int
-	{
+	public function getVersion() : int{
 		return $this->version;
 	}
 
-	public function getAuthor(): string
-	{
+	public function getAuthor() : string{
 		return $this->author;
 	}
 
-	public function getSize(): Vector3
-	{
+	public function getSize() : Vector3{
 		return $this->size;
 	}
 }

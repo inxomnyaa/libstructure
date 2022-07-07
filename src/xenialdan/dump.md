@@ -1,4 +1,5 @@
 # NBT format output of exported.mcstructure
+
 ```
 TAG_Compound({
     'structure_world_origin': TAG_List<TAG_Int>({

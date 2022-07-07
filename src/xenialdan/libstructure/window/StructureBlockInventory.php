@@ -9,11 +9,10 @@ use pocketmine\block\inventory\BlockInventoryTrait;
 use pocketmine\inventory\SimpleInventory;
 use pocketmine\world\Position;
 
-class StructureBlockInventory extends SimpleInventory implements BlockInventory
-{
+class StructureBlockInventory extends SimpleInventory implements BlockInventory{
 	use BlockInventoryTrait;
-	public function __construct(Position $holder)
-	{
+
+	public function __construct(Position $holder){
 		$this->holder = $holder;
 		parent::__construct(0);
 	}

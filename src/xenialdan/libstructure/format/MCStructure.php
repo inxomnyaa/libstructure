@@ -23,6 +23,7 @@ use pocketmine\nbt\tag\CompoundTag;
 use pocketmine\nbt\tag\IntTag;
 use pocketmine\nbt\tag\ListTag;
 use pocketmine\nbt\UnexpectedTagTypeException;
+use pocketmine\network\mcpe\protocol\types\BlockPosition;
 use pocketmine\utils\AssumptionFailedError;
 use pocketmine\utils\Filesystem;
 use pocketmine\utils\TextFormat;
@@ -34,9 +35,11 @@ use xenialdan\libblockstate\BlockState;
 use xenialdan\libblockstate\BlockStatesParser;
 use xenialdan\libstructure\exception\StructureFileException;
 use xenialdan\libstructure\exception\StructureFormatException;
+use function count;
 
 class MCStructure{
 	//https://github.com/df-mc/structure/blob/651c5d323dbfb24991dafdb72129e2a8a478a81b/structure.go#L66-L91
+	private const VERSION = 1;
 	public const TAG_STRUCTURE_WORLD_ORIGIN = 'structure_world_origin';
 	public const TAG_FORMAT_VERSION = 'format_version';
 	public const TAG_SIZE = 'size';
@@ -49,17 +52,75 @@ class MCStructure{
 	public const TAG_PALETTE_BLOCK_POSITION_DATA = 'block_position_data';
 	public const TAG_PALETTE_BLOCK_ENTITY_DATA = 'block_entity_data';
 	public const EXTENSION_MCSTRUCTURE = '.mcstructure';
-	public const LAYER_BLOCKS = 0;
-	public const LAYER_LIQUIDS = 1;
-	private Vector3 $structure_world_origin;
-	private int $format_version;
-	private Vector3 $size;
-	/** @var PalettedBlockArray[] */
-	private array $blockLayers = [];
-	/** @var CompoundTag[] */
-	private array $entities = [];
-	/** @var CompoundTag[] */
-	private array $blockEntities = [];
+
+	public int $formatVersion;
+	public BlockPosition $size;
+	public BlockPosition $origin;
+	public MCStructureData $structure;
+
+	private string $paletteName;
+	/** @phpstan-var array<string, array<int, BlockState|string>> */
+	private array $palette;//pointer
+
+	/**
+	 * @var PalettedBlockArray[]
+	 */
+	private array $layers;
+	public array $blockEntities;
+
+	public function check() : bool{
+		if($this->formatVersion !== self::VERSION) throw new StructureFileException("Unsupported format version: " . $this->formatVersion);
+		if(count($this->structure->blockIndices) === 0) throw new StructureFileException("Structure has no blocks in it");
+		if(count($this->structure->palettes) === 0) throw new StructureFileException("Structure has no palettes in it");
+		$size = $this->size->getX() * $this->size->getY() * $this->size->getZ();
+		foreach($this->structure->blockIndices as $layer => $indices){
+			if(count($indices) !== $size) throw new StructureFileException("Structure is " . $this->size->getX() . "x" . $this->size->getY() . "x" . $this->size->getZ() . " but has " . count($indices) . " blocks in layer " . $layer);
+		}
+		$paletteLen = -1;
+		foreach($this->structure->palettes as $name => $palette){
+			if($paletteLen === -1){
+				$paletteLen = count($palette);
+				continue;
+			}
+			if(count($palette) !== $paletteLen) throw new StructureFileException("Structure palette " . $name . " has " . count($palette) . " entries but previous palettes have " . $paletteLen);
+		}
+		return true;
+	}
+
+	public function set(int $x, int $y, int $z, BlockState $blockState, ?CompoundTag $nbt = null){
+		$ptr = $this->lookup($blockState);
+		if($ptr === -1){
+			$ptr = count($this->palette[self::TAG_PALETTE_BLOCK_PALETTE]);
+			$this->palette[$ptr] = [
+				self::TAG_PALETTE_BLOCK_PALETTE => $blockState,
+				self::TAG_PALETTE_BLOCK_POSITION_DATA => $nbt
+			];
+		}
+		$l = $this->size->getZ();
+		$h = $this->size->getY();
+		$offset = ($x * $l * $h) + ($y * $l) + $z;
+		$this->structure->blockIndices[0][$offset] = $ptr;
+	}
+
+	//usePalette function
+	public function usePalette(string $name) : void{
+		//FIXME add write mode
+		if(isset($this->structure->palettes[$name])){
+			$this->paletteName = $name;
+			$this->palette = &$this->structure->palettes[$name];
+		}
+	}
+
+	public function lookup(BlockState $properties) : int{
+		foreach($this->palette as $index => $entry){
+			$blockState = $entry[self::TAG_PALETTE_BLOCK_PALETTE];
+			if($blockState instanceof BlockState && $blockState->equals($properties)){
+				return $index;
+			}
+		}
+		return -1;
+	}
+
 
 	/**
 	 * Parses a *.mcstructure file
@@ -69,25 +130,32 @@ class MCStructure{
 	 * @throws InvalidArgumentException|StructureFileException|StructureFormatException|UnexpectedTagTypeException|UnexpectedValueException|NbtDataException|OutOfRangeException
 	 * @see MCStructure
 	 */
-	public function parse(string $path) : void{
+	public static function read(string $path) : self{
 		$pathext = pathinfo($path, PATHINFO_EXTENSION);
 		if('.' . strtolower($pathext) !== self::EXTENSION_MCSTRUCTURE) throw new InvalidArgumentException("File extension $pathext for file $path is not " . self::EXTENSION_MCSTRUCTURE);
 		$path = Filesystem::cleanPath(realpath($path));
 		$fread = file_get_contents($path);
 		if($fread === false) throw new StructureFileException("Could not read file $path");
 		$namedTag = (new LittleEndianNBTSerializer())->read($fread)->mustGetCompoundTag();
-		#Server::getInstance()->getLogger()->debug($namedTag->toString(2));
-		//version
-		$version = $namedTag->getInt(self::TAG_FORMAT_VERSION);
-		if($version === null) throw new StructureFormatException(self::TAG_FORMAT_VERSION . " must be present and valid integer");
-		$this->format_version = $version;
-		//structure origin
-		$structureWorldOrigin = self::parseVec3($namedTag, self::TAG_STRUCTURE_WORLD_ORIGIN, true);//TODO check if optional (makes it V3{0,0,0})
-		$this->structure_world_origin = $structureWorldOrigin;
-		//size
-		$size = self::parseVec3($namedTag, self::TAG_SIZE, false);
-		$this->size = $size;
-		$this->parseStructure($namedTag->getCompoundTag(self::TAG_STRUCTURE));
+
+		$structure = new self();
+
+		$structure->formatVersion = $namedTag->getInt(self::TAG_FORMAT_VERSION);
+		$structure->origin = self::parseBlockPosition($namedTag, self::TAG_STRUCTURE_WORLD_ORIGIN, true);
+		$structure->size = self::parseBlockPosition($namedTag, self::TAG_SIZE, false);
+		$structure->structure = MCStructureData::fromNBT($namedTag->getCompoundTag(self::TAG_STRUCTURE));
+
+		$structure->check();
+
+		return $structure;
+
+		#$this->parseStructure($namedTag->getCompoundTag(self::TAG_STRUCTURE));
+	}
+
+	//parse method
+	public function parse() : self{
+		$this->structure->parse($this);
+		return $this;
 	}
 
 	/**
@@ -95,13 +163,14 @@ class MCStructure{
 	 * @param string      $tagName
 	 * @param bool        $optional
 	 *
-	 * @return Vector3
-	 * @throws UnexpectedValueException|UnexpectedTagTypeException
+	 * @return BlockPosition
+	 * @throws UnexpectedTagTypeException
+	 * @throws UnexpectedValueException
 	 */
-	private static function parseVec3(CompoundTag $nbt, string $tagName, bool $optional) : Vector3{
+	private static function parseBlockPosition(CompoundTag $nbt, string $tagName, bool $optional) : BlockPosition{
 		$pos = $nbt->getListTag($tagName);
 		if($pos === null and $optional){
-			return new Vector3(0, 0, 0);
+			return new BlockPosition(0, 0, 0);
 		}
 		if(!($pos instanceof ListTag) or $pos->getTagType() !== NBT::TAG_Int){
 			throw new UnexpectedValueException("'$tagName' should be a List<Int>");
@@ -111,19 +180,25 @@ class MCStructure{
 		if(count($values) !== 3){
 			throw new UnexpectedValueException("Expected exactly 3 entries in '$tagName' tag");
 		}
-		return new Vector3($values[0]->getValue(), $values[1]->getValue(), $values[2]->getValue());
+		return new BlockPosition($values[0]->getValue(), $values[1]->getValue(), $values[2]->getValue());
+	}
+
+	public function getPaletteName() : string{
+		return $this->paletteName;
 	}
 
 	/**
-	 * @throws OutOfRangeException|UnexpectedTagTypeException|InvalidArgumentException
+	 * @param PalettedBlockArray[] $layers
 	 */
-	private function parseStructure(CompoundTag $structure) : void{
-		$blockIndicesList = $structure->getListTag('block_indices');//list<list<int>>
-		#$entitiesList = $structure->getListTag('entities');
-		#var_dump($entitiesList->toString(2));
-		$paletteCompound = $structure->getCompoundTag('palette');
-		#$this->parseEntities($entitiesList);//TODO
-		$this->parseBlockLayers($paletteCompound, $blockIndicesList);
+	public function setLayers(array $layers) : void{
+		$this->layers = $layers;
+	}
+
+	/**
+	 * @return PalettedBlockArray[]
+	 */
+	public function getLayers() : array{
+		return $this->layers;
 	}
 
 	/**
@@ -217,11 +292,11 @@ class MCStructure{
 	 * @throws OutOfBoundsException
 	 */
 	public function blocks(int $layer = 0) : Generator{
-		if($layer > count($this->blockLayers) || $layer < 0) throw new OutOfBoundsException('Layers must be in range 0...' . count($this->blockLayers));
+		if($layer > count($this->layers) || $layer < 0) throw new OutOfBoundsException('Layers must be in range 0...' . count($this->layers));
 		for($x = 0; $x < $this->size->getX(); $x++){
 			for($y = 0; $y < $this->size->getY(); $y++){
 				for($z = 0; $z < $this->size->getZ(); $z++){
-					$fullState = $this->blockLayers[$layer]->get($x, $y, $z);
+					$fullState = $this->layers[$layer]->get($x, $y, $z);
 					$block = BlockFactory::getInstance()->fromFullBlock($fullState);
 					[$block->getPosition()->x, $block->getPosition()->y, $block->getPosition()->z] = [$x, $y, $z];
 					yield $block;
@@ -294,12 +369,12 @@ class MCStructure{
 		return $value;
 	}
 
-	public function getSize() : Vector3{
+	public function getSize() : BlockPosition{
 		return $this->size;
 	}
 
-	public function getStructureWorldOrigin() : Vector3{
-		return $this->structure_world_origin;
+	public function getStructureWorldOrigin() : BlockPosition{
+		return $this->origin;
 	}
 
 	/**
@@ -317,11 +392,11 @@ class MCStructure{
 	}
 
 	public function getBlockLayersCount() : int{
-		return count($this->blockLayers);
+		return count($this->layers);
 	}
 
 	public function getFormatVersion() : int{
-		return $this->format_version;
+		return $this->formatVersion;
 	}
 
 }

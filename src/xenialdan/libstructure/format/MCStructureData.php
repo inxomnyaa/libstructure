@@ -11,7 +11,6 @@ use pocketmine\nbt\tag\CompoundTag;
 use pocketmine\nbt\tag\ListTag;
 use pocketmine\world\format\PalettedBlockArray;
 use pocketmine\world\World;
-use xenialdan\libblockstate\BlockState;
 use xenialdan\libblockstate\BlockStatesParser;
 use function range;
 
@@ -57,8 +56,6 @@ class MCStructureData{
 		$structure->usePalette(MCStructure::TAG_PALETTE_DEFAULT);//TODO
 		$paletteName = $structure->getPaletteName();//TODO check if empty/not set
 		//TODO check if palette was already parsed
-		/** @var BlockStatesParser $blockStatesParser */
-		$blockStatesParser = BlockStatesParser::getInstance();
 		/** @var PalettedBlockArray[] $layers */
 		$layers = [];
 
@@ -76,9 +73,9 @@ class MCStructureData{
 						$offset = (int) (($x * $l * $h) + ($y * $l) + $z);
 
 						if(($i = $this->blockIndices[$layer][$offset] ?? -1) !== -1){
-							if(($statesEntry = $palette[$i] ?? null) !== null){
+							if(($fullId = $palette[$i] ?? null) !== null){
 								try{
-									$layers[$layer]->set($x, $y, $z, $statesEntry->getFullId());
+									$layers[$layer]->set($x, $y, $z, $fullId);
 								}catch(Exception $e){
 									GlobalLogger::get()->logException($e);
 								}
@@ -100,14 +97,14 @@ class MCStructureData{
 		return $structure;
 	}
 
-	/** @phpstan-return array<string, BlockState> */
+	/** @phpstan-return array<string, int> */
 	private function parsePalette(string $paletteName) : array{
 		/** @var BlockStatesParser $blockStatesParser */
 		$blockStatesParser = BlockStatesParser::getInstance();
 		$palette = [];
 		foreach($this->palettes[$paletteName] as $index => $blockStateTag){
 			$blockState = $blockStatesParser->getFromCompound($blockStateTag);
-			$palette[$index] = $blockState;
+			$palette[$index] = $blockState->getFullId();
 		}
 		return $palette;
 	}

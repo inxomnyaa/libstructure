@@ -6,6 +6,6 @@ projects:
     type: library
     libs:
       - src: thebigsmilexd/libblockstate/libblockstate
-        version: ^0.0.1
+        version: ^0.1.2
         branch: master
 ...

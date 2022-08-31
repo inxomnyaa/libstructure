@@ -6,7 +6,6 @@ namespace xenialdan\libstructure\format;
 
 use Exception;
 use GlobalLogger;
-use pocketmine\block\BlockLegacyIds;
 use pocketmine\nbt\tag\CompoundTag;
 use pocketmine\nbt\tag\ListTag;
 use pocketmine\world\format\PalettedBlockArray;
@@ -62,7 +61,7 @@ class MCStructureData{
 		$palette = $this->parsePalette($paletteName);
 
 		foreach($this->blockIndices as $layer => $indices){
-			$layers[$layer] = new PalettedBlockArray(BlockLegacyIds::AIR << 4);//TODO structure void block id?
+			$layers[$layer] = new PalettedBlockArray(-1);
 
 			//positions
 			$l = $structure->size->getZ();

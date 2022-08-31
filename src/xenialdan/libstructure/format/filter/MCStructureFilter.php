@@ -4,13 +4,11 @@ declare(strict_types=1);
 
 namespace xenialdan\libstructure\format\filter;
 
-use pocketmine\block\BlockLegacyIds;
 use pocketmine\nbt\NoSuchTagException;
 use pocketmine\nbt\UnexpectedTagTypeException;
 use pocketmine\world\format\PalettedBlockArray;
 use xenialdan\libblockstate\BlockStatesParser;
 use xenialdan\libblockstate\exception\BlockQueryParsingFailedException;
-use function var_dump;
 
 class MCStructureFilter{
 
@@ -28,7 +26,7 @@ class MCStructureFilter{
 		$palette = $layer->getPalette();
 		foreach($palette as $id){
 			if(!in_array($id, $fullIds, true)){
-				$layer->replaceAll($id, BlockLegacyIds::AIR << 4);//TODO figure out a way to skip the block instead of replacing it with air
+				$layer->replaceAll($id, -1);
 			}
 		}
 		return $layer;
@@ -48,7 +46,7 @@ class MCStructureFilter{
 		$palette = $layer->getPalette();
 		foreach($palette as $id){
 			if(in_array($id, $fullIds, true)){
-				$layer->replaceAll($id, BlockLegacyIds::AIR << 4);//TODO figure out a way to skip the block instead of replacing it with air
+				$layer->replaceAll($id, -1);
 			}
 		}
 		return $layer;
@@ -71,7 +69,7 @@ class MCStructureFilter{
 		foreach($palette as $id){
 			$blockState = $blockStatesParser->getFullId($id);
 			if(!in_array($blockState->state->getId(), $blockIds, true)){
-				$layer->replaceAll($id, BlockLegacyIds::AIR << 4);//TODO figure out a way to skip the block instead of replacing it with air
+				$layer->replaceAll($id, -1);
 			}
 		}
 		return $layer;
@@ -94,7 +92,7 @@ class MCStructureFilter{
 		foreach($palette as $id){
 			$blockState = $blockStatesParser->getFullId($id);
 			if(in_array($blockState->state->getId(), $blockIds, true)){
-				$layer->replaceAll($id, BlockLegacyIds::AIR << 4);//TODO figure out a way to skip the block instead of replacing it with air
+				$layer->replaceAll($id, -1);
 			}
 		}
 		return $layer;
@@ -119,7 +117,7 @@ class MCStructureFilter{
 			$compoundTag = $blockState->state->getBlockState()->getCompoundTag("states");
 			foreach($blockStates as $blockState){
 				if($compoundTag->getTag($blockState) === null){
-					$layer->replaceAll($id, BlockLegacyIds::AIR << 4);//TODO figure out a way to skip the block instead of replacing it with air
+					$layer->replaceAll($id, -1);
 				}
 			}
 		}
@@ -145,7 +143,7 @@ class MCStructureFilter{
 			$compoundTag = $blockState->state->getBlockState()->getCompoundTag("states");
 			foreach($blockStates as $stateName => $stateValue){
 				if(!(($state = $compoundTag->getTag($stateName)) !== null && $state->getValue() === $stateValue)){
-					$layer->replaceAll($id, BlockLegacyIds::AIR << 4);//TODO figure out a way to skip the block instead of replacing it with air
+					$layer->replaceAll($id, -1);
 				}
 			}
 		}
@@ -163,11 +161,9 @@ class MCStructureFilter{
 	 * @return PalettedBlockArray
 	 */
 	public static function replace(PalettedBlockArray $layer, array $blockIds = []) : PalettedBlockArray{
-		var_dump($layer->getPalette());
 		foreach($blockIds as $from => $to){
 			$layer->replaceAll($from, $to);
 		}
-		var_dump($layer->getPalette());
 		return $layer;
 	}
 

@@ -3,14 +3,11 @@
 namespace xenialdan\libstructure\format;
 
 use Closure;
-use Exception;
 use Generator;
-use GlobalLogger;
 use InvalidArgumentException;
 use OutOfBoundsException;
 use OutOfRangeException;
 use pocketmine\block\BlockFactory;
-use pocketmine\block\BlockLegacyIds;
 use pocketmine\block\tile\Container;
 use pocketmine\block\tile\Tile;
 use pocketmine\block\tile\TileFactory;
@@ -26,15 +23,14 @@ use pocketmine\nbt\UnexpectedTagTypeException;
 use pocketmine\network\mcpe\protocol\types\BlockPosition;
 use pocketmine\utils\AssumptionFailedError;
 use pocketmine\utils\Filesystem;
-use pocketmine\utils\TextFormat;
 use pocketmine\world\format\PalettedBlockArray;
 use pocketmine\world\Position;
 use pocketmine\world\World;
 use UnexpectedValueException;
 use xenialdan\libblockstate\BlockState;
-use xenialdan\libblockstate\BlockStatesParser;
 use xenialdan\libstructure\exception\StructureFileException;
 use xenialdan\libstructure\exception\StructureFormatException;
+use xenialdan\libstructure\format\filter\MCStructureFilter;
 use function count;
 
 class MCStructure{
@@ -61,11 +57,10 @@ class MCStructure{
 	private string $paletteName;
 	/** @phpstan-var array<string, array<int, BlockState|string>> */
 	private array $palette;//pointer
-
-	/**
-	 * @var PalettedBlockArray[]
-	 */
+	/** @var PalettedBlockArray[] */
 	private array $layers;
+	private int $activeLayer = 0;
+
 	public array $blockEntities;
 
 	public function check() : bool{
@@ -202,102 +197,115 @@ class MCStructure{
 	}
 
 	/**
-	 * @param CompoundTag|null              $paletteCompound
-	 * @param ListTag<ListTag<IntTag>>|null $blockIndicesList
-	 *
-	 * @throws InvalidArgumentException|OutOfRangeException|UnexpectedTagTypeException
+	 * @throws OutOfBoundsException
 	 */
-	private function parseBlockLayers(?CompoundTag $paletteCompound, ?ListTag $blockIndicesList) : void{
-		/*if($paletteCompound->count() > 1){
+	public function setActiveLayer(int $layer) : self{
+		if($layer > count($this->layers) || $layer < 0) throw new OutOfBoundsException('Layers must be in range 0...' . count($this->layers));
+		$this->activeLayer = $layer;
+		return $this;
+	}
 
-		}*/
-		$paletteDefaultTag = $paletteCompound->getCompoundTag(self::TAG_PALETTE_DEFAULT);
-		$paletteBlocks = new PalettedBlockArray(BlockLegacyIds::AIR << 4);
-		$paletteLiquids = new PalettedBlockArray(BlockLegacyIds::AIR << 4);
-		$blockEntities = [];
-		/** @var BlockState[] $paletteArray */
-		$paletteArray = [];
-		/** @var CompoundTag $blockCompoundTag */
-		foreach($paletteDefaultTag->getListTag(self::TAG_PALETTE_BLOCK_PALETTE) as $paletteIndex => $blockCompoundTag){
-			$blockState = BlockStatesParser::getInstance()->getFromCompound($blockCompoundTag);
-			if($blockState instanceof BlockState) $paletteArray[$paletteIndex] = $blockState;
-			else print TextFormat::RED . $blockCompoundTag . " is not BlockStatesEntry";
-		}
-		/** @var CompoundTag $blockPositionData */
-		$blockPositionData = $paletteDefaultTag->getCompoundTag(self::TAG_PALETTE_BLOCK_POSITION_DATA);
-		//positions
-		$l = $this->size->getZ();
-		$h = $this->size->getY();
-		foreach(range(0, $this->size->getZ() - 1) as $z){
-			foreach(range(0, $this->size->getY() - 1) as $y){
-				foreach(range(0, $this->size->getX() - 1) as $x){
-//					foreach ($blockIndicesList as $layerIndex => $layer) {
-//						$layer = reset($layer);//only default
-//						/** @var ListTag $layer */
-//						foreach ($layer as $i => $paletteId) {
-//							/** @var IntTag $paletteId */
+//	/**
+//	 * @param CompoundTag|null              $paletteCompound
+//	 * @param ListTag<ListTag<IntTag>>|null $blockIndicesList
+//	 *
+//	 * @throws InvalidArgumentException|OutOfRangeException|UnexpectedTagTypeException
+//	 */
+//	private function parseBlockLayers(?CompoundTag $paletteCompound, ?ListTag $blockIndicesList) : void{
+//		/*if($paletteCompound->count() > 1){
 //
+//		}*/
+//		$paletteDefaultTag = $paletteCompound->getCompoundTag(self::TAG_PALETTE_DEFAULT);
+//		$paletteBlocks = new PalettedBlockArray(BlockLegacyIds::AIR << 4);
+//		$paletteLiquids = new PalettedBlockArray(BlockLegacyIds::AIR << 4);
+//		$blockEntities = [];
+//		/** @var BlockState[] $paletteArray */
+//		$paletteArray = [];
+//		/** @var CompoundTag $blockCompoundTag */
+//		foreach($paletteDefaultTag->getListTag(self::TAG_PALETTE_BLOCK_PALETTE) as $paletteIndex => $blockCompoundTag){
+//			$blockState = BlockStatesParser::getInstance()->getFromCompound($blockCompoundTag);
+//			if($blockState instanceof BlockState) $paletteArray[$paletteIndex] = $blockState;
+//			else print TextFormat::RED . $blockCompoundTag . " is not BlockStatesEntry";
+//		}
+//		/** @var CompoundTag $blockPositionData */
+//		$blockPositionData = $paletteDefaultTag->getCompoundTag(self::TAG_PALETTE_BLOCK_POSITION_DATA);
+//		//positions
+//		$l = $this->size->getZ();
+//		$h = $this->size->getY();
+//		foreach(range(0, $this->size->getZ() - 1) as $z){
+//			foreach(range(0, $this->size->getY() - 1) as $y){
+//				foreach(range(0, $this->size->getX() - 1) as $x){
+////					foreach ($blockIndicesList as $layerIndex => $layer) {
+////						$layer = reset($layer);//only default
+////						/** @var ListTag $layer */
+////						foreach ($layer as $i => $paletteId) {
+////							/** @var IntTag $paletteId */
+////
+////						}
+////					}
+//					$offset = (int) (($x * $l * $h) + ($y * $l) + $z);
+//
+//					//block layer
+//					/** @var ListTag<IntTag> $tag */
+//					$tag = $blockIndicesList->get(0);
+//					$blockLayer = $tag->getAllValues();
+//					if(($i = $blockLayer[$offset] ?? -1) !== -1){
+//						if(($statesEntry = $paletteArray[$i] ?? null) !== null){
+//							try{
+//								$block = $statesEntry->getBlock();
+//								/** @noinspection PhpInternalEntityUsedInspection */
+//								$paletteBlocks->set($x, $y, $z, $block->getFullId());
+//							}catch(Exception $e){
+//								GlobalLogger::get()->logException($e);
+//							}
 //						}
 //					}
-					$offset = (int) (($x * $l * $h) + ($y * $l) + $z);
+//					//liquid layer
+//					/** @var ListTag<IntTag> $tag */
+//					$tag = $blockIndicesList->get(1);
+//					$liquidLayer = $tag->getAllValues();
+//					if(($i = $liquidLayer[$offset] ?? -1) !== -1){
+//						if(($statesEntry = $paletteArray[$i] ?? null) !== null){
+//							try{
+//								$block = $statesEntry->getBlock();
+//								/** @noinspection PhpInternalEntityUsedInspection */
+//								$paletteLiquids->set($x, $y, $z, $block->getFullId());
+//							}catch(Exception $e){
+//								GlobalLogger::get()->logException($e);
+//							}
+//						}
+//					}
+//					//nbt
+//					if($blockPositionData->getTag((string) $offset) !== null){
+//						/** @var CompoundTag<CompoundTag> $tag1 */
+//						$tag1 = $blockPositionData->getCompoundTag((string) $offset);
+//						$blockEntities[World::blockHash($x, $y, $z)] = $tag1->getCompoundTag(self::TAG_PALETTE_BLOCK_ENTITY_DATA);
+//					}
+//				}
+//			}
+//		}
+//
+//		$this->blockLayers = [$paletteBlocks, $paletteLiquids];
+//		$this->blockEntities = $blockEntities;
+//	}
 
-					//block layer
-					/** @var ListTag<IntTag> $tag */
-					$tag = $blockIndicesList->get(0);
-					$blockLayer = $tag->getAllValues();
-					if(($i = $blockLayer[$offset] ?? -1) !== -1){
-						if(($statesEntry = $paletteArray[$i] ?? null) !== null){
-							try{
-								$block = $statesEntry->getBlock();
-								/** @noinspection PhpInternalEntityUsedInspection */
-								$paletteBlocks->set($x, $y, $z, $block->getFullId());
-							}catch(Exception $e){
-								GlobalLogger::get()->logException($e);
-							}
-						}
-					}
-					//liquid layer
-					/** @var ListTag<IntTag> $tag */
-					$tag = $blockIndicesList->get(1);
-					$liquidLayer = $tag->getAllValues();
-					if(($i = $liquidLayer[$offset] ?? -1) !== -1){
-						if(($statesEntry = $paletteArray[$i] ?? null) !== null){
-							try{
-								$block = $statesEntry->getBlock();
-								/** @noinspection PhpInternalEntityUsedInspection */
-								$paletteLiquids->set($x, $y, $z, $block->getFullId());
-							}catch(Exception $e){
-								GlobalLogger::get()->logException($e);
-							}
-						}
-					}
-					//nbt
-					if($blockPositionData->getTag((string) $offset) !== null){
-						/** @var CompoundTag<CompoundTag> $tag1 */
-						$tag1 = $blockPositionData->getCompoundTag((string) $offset);
-						$blockEntities[World::blockHash($x, $y, $z)] = $tag1->getCompoundTag(self::TAG_PALETTE_BLOCK_ENTITY_DATA);
-					}
-				}
-			}
-		}
-
-		$this->blockLayers = [$paletteBlocks, $paletteLiquids];
-		$this->blockEntities = $blockEntities;
+	public function getPalettedBlockArray(?int $layer = null) : PalettedBlockArray{
+		$this->activeLayer = $layer ?? $this->activeLayer;
+		return $this->layers[$this->activeLayer];
 	}
 
 	/**
-	 * @param int $layer Zero = block layer, One = liquid layer
+	 * @param PalettedBlockArray|null $palettedBlockArray can be filtered or modified using {@link MCStructureFilter} methods. If null is passed, the current layer will be used.
 	 *
 	 * @return Generator
-	 * @throws OutOfBoundsException
 	 */
-	public function blocks(int $layer = 0) : Generator{
-		if($layer > count($this->layers) || $layer < 0) throw new OutOfBoundsException('Layers must be in range 0...' . count($this->layers));
+	public function blocks(?PalettedBlockArray $palettedBlockArray = null) : Generator{
+		$palettedBlockArray ??= $this->getPalettedBlockArray();
 		for($x = 0; $x < $this->size->getX(); $x++){
 			for($y = 0; $y < $this->size->getY(); $y++){
 				for($z = 0; $z < $this->size->getZ(); $z++){
-					$fullState = $this->layers[$layer]->get($x, $y, $z);
-					$block = BlockFactory::getInstance()->fromFullBlock($fullState);
+					$fullId = $palettedBlockArray->get($x, $y, $z);
+					$block = BlockFactory::getInstance()->fromFullBlock($fullId);
 					[$block->getPosition()->x, $block->getPosition()->y, $block->getPosition()->z] = [$x, $y, $z];
 					yield $block;
 				}

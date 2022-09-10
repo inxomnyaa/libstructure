@@ -6,12 +6,15 @@ namespace xenialdan\libstructure\format;
 
 use Exception;
 use GlobalLogger;
+use pocketmine\nbt\NBT;
 use pocketmine\nbt\tag\CompoundTag;
+use pocketmine\nbt\tag\IntTag;
 use pocketmine\nbt\tag\ListTag;
 use pocketmine\world\format\PalettedBlockArray;
 use pocketmine\world\World;
 use xenialdan\libblockstate\BlockStatesParser;
 use function range;
+use function var_dump;
 
 class MCStructureData{
 	/**
@@ -21,14 +24,13 @@ class MCStructureData{
 	 */
 	public array $blockIndices = [];
 	public array $entities = [];
-	/**
-	 * @phpstan-var array<string, array<int, CompoundTag>>
-	 */
+	/** @phpstan-var array<string, array<int, CompoundTag>> */
 	public array $palettes = [];
 	public array $blockEntity = [];
 
 	private array $layers = [];
-	private $blockPositionData;
+	/** @phpstan-var array<string, CompoundTag> */
+	private array $blockPositionData = [];
 
 	public static function fromNBT(?CompoundTag $compoundTag) : MCStructureData{
 		$data = new MCStructureData();
@@ -43,8 +45,7 @@ class MCStructureData{
 		$palettes = $compoundTag->getCompoundTag(MCStructure::TAG_PALETTE);
 		foreach($palettes as $paletteName => $paletteData){
 			$data->palettes[$paletteName] = $paletteData->getListTag(MCStructure::TAG_PALETTE_BLOCK_PALETTE)?->getValue();
-			/** @var CompoundTag $blockPositionData */
-			$data->blockPositionData = $paletteData->getCompoundTag(MCStructure::TAG_PALETTE_BLOCK_POSITION_DATA);
+			$data->blockPositionData[$paletteName] = $paletteData->getCompoundTag(MCStructure::TAG_PALETTE_BLOCK_POSITION_DATA);
 		}
 		return $data;
 	}
@@ -81,9 +82,9 @@ class MCStructureData{
 							}
 						}
 						//nbt
-						if($this->blockPositionData->getTag((string) $offset) !== null){
+						if($this->blockPositionData[$paletteName]->getTag((string) $offset) !== null){
 							/** @var CompoundTag<CompoundTag> $tag1 */
-							$tag1 = $this->blockPositionData->getCompoundTag((string) $offset);
+							$tag1 = $this->blockPositionData[$paletteName]->getCompoundTag((string) $offset);
 							$structure->blockEntities[World::blockHash($x, $y, $z)] = $tag1->getCompoundTag(MCStructure::TAG_PALETTE_BLOCK_ENTITY_DATA);
 						}
 					}

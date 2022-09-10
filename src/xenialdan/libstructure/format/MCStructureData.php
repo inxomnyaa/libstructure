@@ -51,6 +51,27 @@ class MCStructureData{
 	}
 
 	//toNBT
+	public function toNBT() : CompoundTag{
+		$blockIndices = new ListTag();
+		foreach($this->blockIndices as $indices){
+			$walk = $indices;
+			array_walk($walk, static function(&$value, $key){
+				$value = new IntTag($value);
+			});
+			/** @var ListTag[] $walk */
+			$blockIndices->push(new ListTag($walk, NBT::TAG_Int));
+		}
+		$compoundTag = (new CompoundTag())->setTag(MCStructure::TAG_BLOCK_INDICES, $blockIndices);
+		$palettes = new CompoundTag();
+		foreach($this->palettes as $paletteName => $paletteData){
+			$palette = (new CompoundTag())
+				->setTag(MCStructure::TAG_PALETTE_BLOCK_PALETTE, new ListTag($paletteData))
+				->setTag(MCStructure::TAG_PALETTE_BLOCK_POSITION_DATA, $this->blockPositionData[$paletteName]);
+			$palettes->setTag($paletteName, $palette);
+		}
+		$compoundTag->setTag(MCStructure::TAG_PALETTE, $palettes);
+		return $compoundTag;
+	}
 
 	public function parse(MCStructure $structure) : MCStructure{//TODO layer or palette parameter?
 		$structure->usePalette(MCStructure::TAG_PALETTE_DEFAULT);//TODO
@@ -97,6 +118,18 @@ class MCStructureData{
 		return $structure;
 	}
 
+	//create MCStructureData from MCStructure
+	public static function fromStructure(MCStructure $structure) : MCStructureData{
+		$data = new MCStructureData();
+		foreach($structure->getLayers() as $layer => $palettedBlockArray){
+			$palettedBlockArray = $structure->getPalettedBlockArray($layer);
+			$paletteName = $structure->getPaletteName();
+			$data->writePalette($paletteName, $palettedBlockArray);
+		}
+
+		return $data;
+	}
+
 	/** @phpstan-return array<string, int> */
 	private function parsePalette(string $paletteName) : array{
 		/** @var BlockStatesParser $blockStatesParser */
@@ -109,8 +142,24 @@ class MCStructureData{
 		return $palette;
 	}
 
-	//writePalette
-	//writeNBT
+	/** @phpstan-param array<string,int> $palette */
+	private function writePalette(string $paletteName, PalettedBlockArray $palette) : void{
+		/** @var BlockStatesParser $blockStatesParser */
+		$blockStatesParser = BlockStatesParser::getInstance();
+		#$this->palettes[$paletteName] = [];
+		$index = 0;
+		var_dump($palette->getPalette());
+		$palette->collectGarbage();
+		var_dump($palette->getPalette());
+		foreach($palette->getPalette() as $fullId){
+			if($fullId !== 0xff_ff_ff_ff){
+				$blockState = $blockStatesParser->getFullId($fullId);
+				var_dump((string) $blockState, $blockState->state->getBlockState());
+				$this->palettes[$paletteName][$index] = $blockState->state->getBlockState();
+				$index++;
+			}
+		}
+	}
 
 
 }

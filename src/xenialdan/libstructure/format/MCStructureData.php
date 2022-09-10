@@ -61,7 +61,7 @@ class MCStructureData{
 		$palette = $this->parsePalette($paletteName);
 
 		foreach($this->blockIndices as $layer => $indices){
-			$layers[$layer] = new PalettedBlockArray(-1);
+			$layers[$layer] = new PalettedBlockArray(0xff_ff_ff_ff);
 
 			//positions
 			$l = $structure->size->getZ();

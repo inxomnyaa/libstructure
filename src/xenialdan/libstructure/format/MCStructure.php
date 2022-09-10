@@ -216,8 +216,8 @@ class MCStructure{
 //
 //		}*/
 //		$paletteDefaultTag = $paletteCompound->getCompoundTag(self::TAG_PALETTE_DEFAULT);
-//		$paletteBlocks = new PalettedBlockArray(-1);
-//		$paletteLiquids = new PalettedBlockArray(-1);
+//		$paletteBlocks = new PalettedBlockArray(0xff_ff_ff_ff);
+//		$paletteLiquids = new PalettedBlockArray(0xff_ff_ff_ff);
 //		$blockEntities = [];
 //		/** @var BlockState[] $paletteArray */
 //		$paletteArray = [];

@@ -55,7 +55,7 @@ class MCStructure{
 	public MCStructureData $structure;
 
 	private string $paletteName;
-	/** @phpstan-var array<string, array<int, BlockState|string>> */
+	/** @phpstan-var array<string, list<int>|CompoundTag<string, CompoundTag> */
 	private array $palette;//pointer
 	/** @var PalettedBlockArray[] */
 	private array $layers;
@@ -74,10 +74,10 @@ class MCStructure{
 		$paletteLen = -1;
 		foreach($this->structure->palettes as $name => $palette){
 			if($paletteLen === -1){
-				$paletteLen = count($palette);
+				$paletteLen = count($palette[MCStructure::TAG_PALETTE_BLOCK_PALETTE]);
 				continue;
 			}
-			if(count($palette) !== $paletteLen) throw new StructureFileException("Structure palette " . $name . " has " . count($palette) . " entries but previous palettes have " . $paletteLen);
+			if(count($palette[MCStructure::TAG_PALETTE_BLOCK_PALETTE]) !== $paletteLen) throw new StructureFileException("Structure palette " . $name . " has " . count($palette[MCStructure::TAG_PALETTE_BLOCK_PALETTE]) . " entries but previous palettes have " . $paletteLen);
 		}
 		return true;
 	}
@@ -100,14 +100,14 @@ class MCStructure{
 	//usePalette function
 	public function usePalette(string $name) : void{
 		//FIXME add write mode
-		if(isset($this->structure->palettes[$name])){
+		if(isset($this->structure->palettes[$name])){//array_key_exists?
 			$this->paletteName = $name;
 			$this->palette = &$this->structure->palettes[$name];
 		}
 	}
 
 	public function lookup(BlockState $properties) : int{
-		foreach($this->palette as $index => $entry){
+		foreach($this->palette[MCStructure::TAG_PALETTE_BLOCK_PALETTE] as $index => $entry){
 			$blockState = $entry[self::TAG_PALETTE_BLOCK_PALETTE];
 			if($blockState instanceof BlockState && $blockState->equals($properties)){
 				return $index;
@@ -396,7 +396,7 @@ class MCStructure{
 	 * @return CompoundTag[]
 	 */
 	public function getEntitiesRaw() : array{
-		return $this->entities;
+		return $this->structure->entities;
 	}
 
 	public function getBlockLayersCount() : int{

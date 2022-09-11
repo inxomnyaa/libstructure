@@ -13,16 +13,21 @@ use pocketmine\nbt\tag\ListTag;
 use pocketmine\world\format\PalettedBlockArray;
 use pocketmine\world\World;
 use xenialdan\libblockstate\BlockStatesParser;
+use function array_search;
+use function count;
 use function range;
-use function var_dump;
 
 class MCStructureData{
 	/**
 	 * @var int[]
-	 * @phpstan-var array<int, array<int, int>>
+	 * @phpstan-var array<int, list<int>>
 	 * layer => index
 	 */
 	public array $blockIndices = [];
+	/**
+	 * @var CompoundTag[]
+	 * @phpstan-var list<CompoundTag>
+	 */
 	public array $entities = [];
 	//TODO				palettename  tagName
 	/** @phpstan-var array<string, array<string, list<int>|CompoundTag<string, CompoundTag>> */
@@ -46,6 +51,7 @@ class MCStructureData{
 				MCStructure::TAG_PALETTE_BLOCK_POSITION_DATA => $paletteData->getCompoundTag(MCStructure::TAG_PALETTE_BLOCK_POSITION_DATA)
 			];
 		}
+		$data->entities = $compoundTag->getListTag(MCStructure::TAG_ENTITIES)->getValue();
 		return $data;
 	}
 
@@ -68,6 +74,7 @@ class MCStructureData{
 				->setTag(MCStructure::TAG_PALETTE_BLOCK_POSITION_DATA, $paletteData[MCStructure::TAG_PALETTE_BLOCK_POSITION_DATA]);
 			$palettes->setTag($paletteName, $palette);
 		}
+		$compoundTag->setTag(MCStructure::TAG_ENTITIES, new ListTag($this->entities, NBT::TAG_Compound));
 		$compoundTag->setTag(MCStructure::TAG_PALETTE, $palettes);
 		return $compoundTag;
 	}
@@ -92,7 +99,8 @@ class MCStructureData{
 					foreach(range(0, $structure->size->getX() - 1) as $x){
 						$offset = (int) (($x * $l * $h) + ($y * $l) + $z);
 
-						if(($i = $this->blockIndices[$layer][$offset] ?? -1) !== -1){
+//						if(($i = $this->blockIndices[$layer][$offset] ?? -1) !== -1){
+						if(($i = $indices[$offset] ?? -1) !== -1){
 							if(($fullId = $palette[$i] ?? null) !== null){
 								try{
 									$layers[$layer]->set($x, $y, $z, $fullId);
@@ -120,9 +128,32 @@ class MCStructureData{
 	public static function fromStructure(MCStructure $structure) : MCStructureData{
 		$data = new MCStructureData();
 		$paletteName = $structure->getPaletteName();
+		/** @phpstan-var list<int> $indices */
+		$indices = [];
 		foreach($structure->getLayers() as $layer => $palettedBlockArray){
 			$palettedBlockArray = $structure->getPalettedBlockArray($layer);
 			$data->writePalette($paletteName, $palettedBlockArray);
+
+			//write block indices
+			for($x = 0; $x < $structure->size->getX(); $x++){
+				for($y = 0; $y < $structure->size->getY(); $y++){
+					for($z = 0; $z < $structure->size->getZ(); $z++){
+						$fullId = $palettedBlockArray->get($x, $y, $z);
+						$offset = (int) (($x * $structure->size->getZ() * $structure->size->getY()) + ($y * $structure->size->getZ()) + $z);
+						if($fullId === 0xff_ff_ff_ff){
+							$data->blockIndices[$layer][$offset] = -1;
+							continue;
+						}
+
+						$index = array_search($fullId, $indices, true);
+						if($index === false){
+							$index = count($indices);
+							$indices[$index] = $fullId;
+						}
+						$data->blockIndices[$layer][$offset] = $index;
+					}
+				}
+			}
 		}
 
 		foreach($structure->blockEntities as $hash => $blockEntity){
@@ -133,6 +164,8 @@ class MCStructureData{
 			}
 			$data->palettes[$paletteName][MCStructure::TAG_PALETTE_BLOCK_POSITION_DATA]->setTag((string) $offset, (new CompoundTag())->setTag(MCStructure::TAG_PALETTE_BLOCK_ENTITY_DATA, $blockEntity));
 		}
+
+		$data->entities = $structure->getEntitiesRaw();
 
 		return $data;
 	}
@@ -155,13 +188,10 @@ class MCStructureData{
 		$blockStatesParser = BlockStatesParser::getInstance();
 		#$this->palettes[$paletteName] = [];
 		$index = 0;
-		var_dump($palette->getPalette());
 		$palette->collectGarbage();
-		var_dump($palette->getPalette());
 		foreach($palette->getPalette() as $fullId){
 			if($fullId !== 0xff_ff_ff_ff){
 				$blockState = $blockStatesParser->getFullId($fullId);
-				var_dump((string) $blockState, $blockState->state->getBlockState());
 				$this->palettes[$paletteName][MCStructure::TAG_PALETTE_BLOCK_PALETTE][$index] = $blockState->state->getBlockState();
 				$index++;
 			}

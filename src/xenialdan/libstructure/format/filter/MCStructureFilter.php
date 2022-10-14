@@ -23,8 +23,10 @@ class MCStructureFilter{
 	 * @return PalettedBlockArray
 	 */
 	public static function with(PalettedBlockArray $layer, array $fullIds = []) : PalettedBlockArray{
+		$layer = clone $layer;
 		$palette = $layer->getPalette();
 		foreach($palette as $id){
+			if($id === 0xff_ff_ff_ff) continue;
 			if(!in_array($id, $fullIds, true)){
 				$layer->replaceAll($id, -1);
 			}
@@ -43,8 +45,10 @@ class MCStructureFilter{
 	 * @return PalettedBlockArray
 	 */
 	public static function except(PalettedBlockArray $layer, array $fullIds = []) : PalettedBlockArray{
+		$layer = clone $layer;
 		$palette = $layer->getPalette();
 		foreach($palette as $id){
+			if($id === 0xff_ff_ff_ff) continue;
 			if(in_array($id, $fullIds, true)){
 				$layer->replaceAll($id, -1);
 			}
@@ -63,10 +67,12 @@ class MCStructureFilter{
 	 * @return PalettedBlockArray
 	 */
 	public static function withBlockIds(PalettedBlockArray $layer, array $blockIds = []) : PalettedBlockArray{
+		$layer = clone $layer;
 		$palette = $layer->getPalette();
 		/** @var BlockStatesParser $blockStatesParser */
 		$blockStatesParser = BlockStatesParser::getInstance();
 		foreach($palette as $id){
+			if($id === 0xff_ff_ff_ff) continue;
 			$blockState = $blockStatesParser->getFullId($id);
 			if(!in_array($blockState->state->getId(), $blockIds, true)){
 				$layer->replaceAll($id, -1);
@@ -86,10 +92,12 @@ class MCStructureFilter{
 	 * @return PalettedBlockArray
 	 */
 	public static function exceptBlockIds(PalettedBlockArray $layer, array $blockIds = []) : PalettedBlockArray{
+		$layer = clone $layer;
 		$palette = $layer->getPalette();
 		/** @var BlockStatesParser $blockStatesParser */
 		$blockStatesParser = BlockStatesParser::getInstance();
 		foreach($palette as $id){
+			if($id === 0xff_ff_ff_ff) continue;
 			$blockState = $blockStatesParser->getFullId($id);
 			if(in_array($blockState->state->getId(), $blockIds, true)){
 				$layer->replaceAll($id, -1);
@@ -109,10 +117,12 @@ class MCStructureFilter{
 	 * @return PalettedBlockArray
 	 */
 	public static function withBlockStates(PalettedBlockArray $layer, array $blockStates = []) : PalettedBlockArray{
+		$layer = clone $layer;
 		$palette = $layer->getPalette();
 		/** @var BlockStatesParser $blockStatesParser */
 		$blockStatesParser = BlockStatesParser::getInstance();
 		foreach($palette as $id){
+			if($id === 0xff_ff_ff_ff) continue;
 			$blockState = $blockStatesParser->getFullId($id);
 			$compoundTag = $blockState->state->getBlockState()->getCompoundTag("states");
 			foreach($blockStates as $blockState){
@@ -135,10 +145,12 @@ class MCStructureFilter{
 	 * @return PalettedBlockArray
 	 */
 	public static function withBlockStatesAndValues(PalettedBlockArray $layer, array $blockStates = []) : PalettedBlockArray{
+		$layer = clone $layer;
 		$palette = $layer->getPalette();
 		/** @var BlockStatesParser $blockStatesParser */
 		$blockStatesParser = BlockStatesParser::getInstance();
 		foreach($palette as $id){
+			if($id === 0xff_ff_ff_ff) continue;
 			$blockState = $blockStatesParser->getFullId($id);
 			$compoundTag = $blockState->state->getBlockState()->getCompoundTag("states");
 			foreach($blockStates as $stateName => $stateValue){
@@ -161,6 +173,7 @@ class MCStructureFilter{
 	 * @return PalettedBlockArray
 	 */
 	public static function replace(PalettedBlockArray $layer, array $blockIds = []) : PalettedBlockArray{
+		$layer = clone $layer;
 		foreach($blockIds as $from => $to){
 			$layer->replaceAll($from, $to);
 		}
@@ -178,10 +191,12 @@ class MCStructureFilter{
 	 * @throws NoSuchTagException Technically impossible to throw
 	 */
 	public static function replaceBlockStates(PalettedBlockArray $layer, array $blockStates = []) : PalettedBlockArray{
+		$layer = clone $layer;
 		$palette = $layer->getPalette();
 		/** @var BlockStatesParser $blockStatesParser */
 		$blockStatesParser = BlockStatesParser::getInstance();
 		foreach($palette as $id){
+			if($id === 0xff_ff_ff_ff) continue;
 			$blockState = $blockStatesParser->getFullId($id);
 			try{
 				$newBlockState = $blockState->replaceBlockStateValues($blockStates, false);//automatically skips if no changes are made

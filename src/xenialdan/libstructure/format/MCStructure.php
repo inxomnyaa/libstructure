@@ -29,6 +29,7 @@ use pocketmine\world\Position;
 use pocketmine\world\World;
 use UnexpectedValueException;
 use xenialdan\libblockstate\BlockState;
+use xenialdan\libblockstate\BlockStatesParser;
 use xenialdan\libstructure\exception\StructureFileException;
 use xenialdan\libstructure\exception\StructureFormatException;
 use xenialdan\libstructure\format\filter\MCStructureFilter;
@@ -67,7 +68,7 @@ class MCStructure{
 
 	public function __construct(MCStructureData $structure, BlockPosition $size, BlockPosition $origin, string $paletteName = self::TAG_PALETTE_DEFAULT){
 		$this->formatVersion = self::VERSION;
-		$this->structure = $structure;
+		$this->structure = &$structure;
 		$this->size = $size;
 		$this->origin = $origin;
 		$this->paletteName = $paletteName;
@@ -93,20 +94,6 @@ class MCStructure{
 		return true;
 	}
 
-	public function set(int $x, int $y, int $z, BlockState $blockState, ?CompoundTag $nbt = null){
-		$ptr = $this->lookup($blockState);
-		if($ptr === -1){
-			$ptr = count($this->palette[self::TAG_PALETTE_BLOCK_PALETTE]);
-			$this->palette[$ptr] = [
-				self::TAG_PALETTE_BLOCK_PALETTE => $blockState,
-				self::TAG_PALETTE_BLOCK_POSITION_DATA => $nbt
-			];
-		}
-		$l = $this->size->getZ();
-		$h = $this->size->getY();
-		$offset = ($x * $l * $h) + ($y * $l) + $z;
-		$this->structure->blockIndices[0][$offset] = $ptr;
-	}
 
 	public function usePalette(string $name) : void{
 		//FIXME add write mode
@@ -122,7 +109,9 @@ class MCStructure{
 
 	public function lookup(BlockState $properties) : int{
 		foreach($this->palette[MCStructure::TAG_PALETTE_BLOCK_PALETTE] as $index => $entry){
-			$blockState = $entry[self::TAG_PALETTE_BLOCK_PALETTE];
+			/** @var BlockStatesParser $blockStatesParser */
+			$blockStatesParser = BlockStatesParser::getInstance();
+			$blockState = $blockStatesParser->getFromCompound($entry);
 			if($blockState instanceof BlockState && $blockState->equals($properties)){
 				return $index;
 			}
@@ -249,6 +238,7 @@ class MCStructure{
 	 * @param PalettedBlockArray|null $palettedBlockArray can be filtered or modified using {@link MCStructureFilter} methods. If null is passed, the current layer will be used.
 	 *
 	 * @return Generator
+	 * @phpstan-return Generator<int, Block>
 	 */
 	public function blocks(?PalettedBlockArray $palettedBlockArray = null) : Generator{//TODO offset
 		for($x = 0; $x < $this->size->getX(); $x++){
@@ -265,12 +255,33 @@ class MCStructure{
 	 *
 	 * @param PalettedBlockArray|null $palettedBlockArray can be filtered or modified using {@link MCStructureFilter} methods. If null is passed, the current layer will be used.
 	 */
-	public function get(int $x, int $y, int $z, ?PalettedBlockArray $palettedBlockArray = null) : Block{//TODO offset
+	public function get(int $x, int $y, int $z, ?PalettedBlockArray $palettedBlockArray = null) : ?Block{//TODO offset
 		$palettedBlockArray ??= $this->getPalettedBlockArray();
 		$fullId = $palettedBlockArray->get($x, $y, $z);
+		if($fullId === 0xff_ff_ff_ff) return null;
 		$block = BlockFactory::getInstance()->fromFullBlock($fullId);
 		[$block->getPosition()->x, $block->getPosition()->y, $block->getPosition()->z] = [$x, $y, $z];
 		return $block;
+	}
+
+	public function set(int $x, int $y, int $z, ?BlockState $blockState, ?CompoundTag $nbt = null){
+		if($blockState === null){
+			$this->getPalettedBlockArray()->set($x, $y, $z, 0xff_ff_ff_ff);
+			return;
+		}
+		$this->getPalettedBlockArray()->set($x, $y, $z, $blockState->getFullId());
+//		$ptr = $this->lookup($blockState);
+//		if($ptr === -1){
+//			$ptr = count($this->palette[self::TAG_PALETTE_BLOCK_PALETTE]);
+//			$this->palette[$ptr] = [
+//				self::TAG_PALETTE_BLOCK_PALETTE => $blockState,
+//				self::TAG_PALETTE_BLOCK_POSITION_DATA => $nbt
+//			];
+//		}
+//		$l = $this->size->getZ();
+//		$h = $this->size->getY();
+//		$offset = ($x * $l * $h) + ($y * $l) + $z;
+//		$this->structure->blockIndices[0][$offset] = $ptr;
 	}
 
 	/**

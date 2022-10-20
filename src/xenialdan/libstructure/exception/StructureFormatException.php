@@ -6,7 +6,6 @@ namespace xenialdan\libstructure\exception;
 
 use pocketmine\nbt\NbtDataException;
 
-class StructureFormatException extends NbtDataException
-{
+class StructureFormatException extends NbtDataException{
 
 }

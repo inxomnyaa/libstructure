@@ -8,6 +8,7 @@ use Generator;
 use InvalidArgumentException;
 use OutOfRangeException;
 use pocketmine\block\Block;
+use pocketmine\block\utils\InvalidBlockStateException;
 use pocketmine\math\Vector3;
 use pocketmine\nbt\BigEndianNbtSerializer;
 use pocketmine\nbt\NBT;
@@ -16,21 +17,20 @@ use pocketmine\nbt\tag\CompoundTag;
 use pocketmine\nbt\tag\IntTag;
 use pocketmine\nbt\tag\ListTag;
 use pocketmine\nbt\tag\StringTag;
+use pocketmine\nbt\UnexpectedTagTypeException;
+use pocketmine\Server;
+use RuntimeException;
+use xenialdan\libblockstate\BlockQuery;
+use xenialdan\libblockstate\BlockStatesParser;
+use xenialdan\libblockstate\exception\BlockQueryParsingFailedException;
+use xenialdan\libblockstate\exception\BlockStateNotFoundException;
 use xenialdan\libstructure\exception\StructureFileException;
-use xenialdan\MagicWE2\exception\InvalidBlockStateException;
-use xenialdan\MagicWE2\helper\BlockQuery;
-use xenialdan\MagicWE2\helper\BlockStatesParser;
-use xenialdan\MagicWE2\Loader;
 use function file_get_contents;
 use function zlib_decode;
 
-class NBTStructure
-{
-	/** @var int */
+class NBTStructure{
 	private int $version;
-	/** @var string */
 	private string $author;
-	/** @var Vector3 */
 	private Vector3 $size;
 	/** @var ListTag<CompoundTag> */
 	private ListTag $palettes;
@@ -44,7 +44,7 @@ class NBTStructure
 	 *
 	 * @param string $file the Schematic output file name
 	 */
-	public function save(string $file): void//TODO
+	public function save(string $file) : void//TODO
 	{
 //		$nbt = new TreeRoot(
 //			CompoundTag::create()
@@ -63,12 +63,13 @@ class NBTStructure
 	 * parse parses a schematic from the file passed.
 	 *
 	 * @param string $file
+	 *
 	 * @throws OutOfRangeException
 	 * @throws StructureFileException
 	 * @throws NbtDataException
+	 * @throws UnexpectedTagTypeException
 	 */
-	public function parse(string $file): void
-	{
+	public function parse(string $file) : void{
 		$nbt = (new BigEndianNbtSerializer())->read(zlib_decode(file_get_contents($file)));
 		$nbt = $nbt->getTag();
 		/** @var CompoundTag $nbt */
@@ -89,21 +90,25 @@ class NBTStructure
 
 	/**
 	 * @param ListTag $paletteList
+	 *
 	 * @return Block[]
-	 * @throws InvalidArgumentException
-	 * @throws \pocketmine\block\utils\InvalidBlockStateException
+	 * @throws RuntimeException
+	 * @throws UnexpectedTagTypeException
+	 * @throws BlockQueryParsingFailedException
+	 * @throws BlockStateNotFoundException
 	 */
-	private function paletteToBlocks(ListTag $paletteList): array
-	{
+	private function paletteToBlocks(ListTag $paletteList) : array{
+		/** @var BlockStatesParser $blockStatesParser */
+		$blockStatesParser = BlockStatesParser::getInstance();
 		/** @var Block[] $blocks */
 		$blocks = [];
 		/** @var CompoundTag $blockCompound */
-		foreach ($paletteList/*->getValue()*/ as $blockCompound) {
+		foreach($paletteList/*->getValue()*/ as $blockCompound){
 			$id = $blockCompound->getString('Name');
 			$states = [];
 			/** @var CompoundTag<StringTag> $properties */
 			$properties = $blockCompound->getCompoundTag('Properties');
-			if ($properties instanceof CompoundTag)
+			if($properties instanceof CompoundTag)
 				//Java/legacy hack
 				/*if($properties->getTag('dataID') !== null){
 					$legacyDataId = $properties->getInt('dataID');
@@ -121,38 +126,40 @@ class NBTStructure
 				}*///TODO java fixes
 
 				/**
-				 * @var string $name
+				 * @var string    $name
 				 * @var StringTag $value
 				 */
-				foreach ($properties->getValue() as $name => $value) {
-					$valueString = (string)$value->getValue();
+				foreach($properties->getValue() as $name => $value){
+					$valueString = (string) $value->getValue();
 					$states[] = $name . '=' . $valueString;
 				}
-			try {
-				$fromString = BlockStatesParser::fromString(BlockQuery::fromString($id . '[' . implode(',', $states) . ']'));
-			} catch (InvalidBlockStateException $e) {
-				Loader::getInstance()->getLogger()->logException($e);
+			try{
+				$blocks[] = $blockStatesParser->parseQuery(BlockQuery::fromString($id . '[' . implode(',', $states) . ']'))->getBlock();
+			}catch(InvalidBlockStateException $e){
+				Server::getInstance()->getLogger()->logException($e);
 			}
-			$blocks[] = reset($fromString);
 		}
 		return $blocks;
 	}
 
 	/**
 	 * returns a generator of blocks found in the schematic opened.
-	 * @param int $palette
+	 *
+	 * @param int $layer
+	 *
 	 * @return Generator
 	 * @throws OutOfRangeException
 	 * @throws InvalidArgumentException
-	 * @throws \pocketmine\block\utils\InvalidBlockStateException
+	 * @throws InvalidBlockStateException
+	 * @throws UnexpectedTagTypeException
+	 * @throws RuntimeException
 	 */
-	public function blocks(int $palette = 0): Generator
-	{
+	public function blocks(int $layer = 0) : Generator{
 		/** @var ListTag $paletteList */
-		$paletteList = $this->palettes->get($palette);
+		$paletteList = $this->palettes->get($layer);
 		$blockPalette = $this->paletteToBlocks($paletteList);
 		/** @var CompoundTag $blockTag */
-		foreach ($this->blocks as $blockTag) {
+		foreach($this->blocks as $blockTag){
 			/** @var ListTag<IntTag> $pos */
 			$pos = $blockTag->getListTag("pos");
 			$block = $blockPalette[$blockTag->getInt('state')];
@@ -229,15 +236,19 @@ class NBTStructure
 //		}
 //	}
 
-	/**
-	 * @param int $x
-	 * @param int $y
-	 * @param int $z
-	 *
-	 * @return int
-	 */
-	protected function blockIndex(int $x, int $y, int $z): int
-	{
+	protected function blockIndex(int $x, int $y, int $z) : int{
 		return ($y * $this->size->getZ() + $z) * $this->size->getX() + $x;
+	}
+
+	public function getVersion() : int{
+		return $this->version;
+	}
+
+	public function getAuthor() : string{
+		return $this->author;
+	}
+
+	public function getSize() : Vector3{
+		return $this->size;
 	}
 }

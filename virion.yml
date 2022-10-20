@@ -1,6 +1,6 @@
 name: libstructure
-version: 0.1.5
+version: 0.3.0
 antigen: xenialdan\libstructure
-api: [4.0.0]
+api: [ 4.0.0 ]
 php: [ 8.0 ]
 author: XenialDan

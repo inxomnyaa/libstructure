@@ -1,11 +1,7 @@
---- # Poggit-CI Manifest. Open the CI at https://poggit.pmmp.io/ci/thebigsmileXD/libstructure
+--- # Poggit-CI Manifest. Open the CI at https://poggit.pmmp.io/ci/inxomnyaa/libstructure
 projects:
   libstructure:
     path: ""
     model: virion
     type: library
-    libs:
-      - src: thebigsmilexd/libblockstate/libblockstate
-        version: ^0.1.2
-        branch: master
 ...

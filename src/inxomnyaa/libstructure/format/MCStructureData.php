@@ -2,20 +2,25 @@
 
 declare(strict_types=1);
 
-namespace xenialdan\libstructure\format;
+namespace inxomnyaa\libstructure\format;
 
 use Exception;
 use GlobalLogger;
+use inxomnyaa\libblockstate\BlockStatesParser;
+use pocketmine\data\bedrock\block\BlockStateDeserializeException;
+use pocketmine\data\bedrock\block\BlockStateSerializeException;
 use pocketmine\nbt\NBT;
 use pocketmine\nbt\tag\CompoundTag;
 use pocketmine\nbt\tag\IntTag;
 use pocketmine\nbt\tag\ListTag;
+use pocketmine\Server;
+use pocketmine\world\format\io\GlobalBlockStateHandlers;
 use pocketmine\world\format\PalettedBlockArray;
 use pocketmine\world\World;
-use xenialdan\libblockstate\BlockStatesParser;
 use function array_search;
 use function count;
 use function range;
+use function var_dump;
 
 class MCStructureData{
 	/**
@@ -45,6 +50,7 @@ class MCStructureData{
 		}
 		$palettes = $compoundTag->getCompoundTag(MCStructure::TAG_PALETTE);
 		foreach($palettes as $paletteName => $paletteData){
+//			print_r($paletteData);
 			$data->palettes[$paletteName] = [
 				MCStructure::TAG_PALETTE_BLOCK_PALETTE => $paletteData->getListTag(MCStructure::TAG_PALETTE_BLOCK_PALETTE)?->getValue(),
 				//compound -> int => compound data
@@ -101,9 +107,9 @@ class MCStructureData{
 
 //						if(($i = $this->blockIndices[$layer][$offset] ?? -1) !== -1){
 						if(($i = $indices[$offset] ?? -1) !== -1){
-							if(($fullId = $palette[$i] ?? null) !== null){
+							if(($stateId = $palette[$i] ?? null) !== null){
 								try{
-									$layers[$layer]->set($x, $y, $z, $fullId);
+									$layers[$layer]->set($x, $y, $z, $stateId);
 								}catch(Exception $e){
 									GlobalLogger::get()->logException($e);
 								}
@@ -132,23 +138,25 @@ class MCStructureData{
 		$indices = [];
 		foreach($structure->getLayers() as $layer => $palettedBlockArray){
 			$palettedBlockArray = $structure->getPalettedBlockArray($layer);
+//			var_dump($data->palettes);
 			$data->writePalette($paletteName, $palettedBlockArray);
+//			var_dump($data->palettes[$paletteName][MCStructure::TAG_PALETTE_BLOCK_PALETTE]);
 
 			//write block indices
 			for($x = 0; $x < $structure->size->getX(); $x++){
 				for($y = 0; $y < $structure->size->getY(); $y++){
 					for($z = 0; $z < $structure->size->getZ(); $z++){
-						$fullId = $palettedBlockArray->get($x, $y, $z);
+						$stateId = $palettedBlockArray->get($x, $y, $z);
 						$offset = (int) (($x * $structure->size->getZ() * $structure->size->getY()) + ($y * $structure->size->getZ()) + $z);
-						if($fullId === 0xff_ff_ff_ff){
+						if($stateId === 0xff_ff_ff_ff){
 							$data->blockIndices[$layer][$offset] = -1;
 							continue;
 						}
 
-						$index = array_search($fullId, $indices, true);
+						$index = array_search($stateId, $indices, true);
 						if($index === false){
 							$index = count($indices);
-							$indices[$index] = $fullId;
+							$indices[$index] = $stateId;
 						}
 						$data->blockIndices[$layer][$offset] = $index;
 					}
@@ -166,34 +174,50 @@ class MCStructureData{
 		}
 
 		$data->entities = $structure->getEntitiesRaw();
+		var_dump("LAYERS", count($data->blockIndices));
 
 		return $data;
 	}
 
 	/** @phpstan-return array<string, int> */
 	private function parsePalette(string $paletteName) : array{
-		/** @var BlockStatesParser $blockStatesParser */
-		$blockStatesParser = BlockStatesParser::getInstance();
+		$blockStateDeserializer = GlobalBlockStateHandlers::getDeserializer();
+		$blockDataUpgrader = GlobalBlockStateHandlers::getUpgrader();
 		$palette = [];
-		foreach($this->palettes[$paletteName][MCStructure::TAG_PALETTE_BLOCK_PALETTE] as $index => $blockStateTag){
-			$blockState = $blockStatesParser->getFromCompound($blockStateTag);
-			$palette[$index] = $blockState->getFullId();
+		foreach($this->palettes[$paletteName][MCStructure::TAG_PALETTE_BLOCK_PALETTE] as $i => $blockStateNbt){
+
+			//TODO: remember data for unknown states so we can implement them later
+			try{
+				$blockStateData = $blockDataUpgrader->upgradeBlockStateNbt($blockStateNbt);
+			}catch(BlockStateDeserializeException $e){
+				//while not ideal, this is not a fatal error
+				Server::getInstance()->getLogger()->error("Failed to upgrade blockstate: " . $e->getMessage() . " offset $i in palette, blockstate NBT: " . $blockStateNbt->toString());
+				$palette[$i] = $blockStateDeserializer->deserialize(GlobalBlockStateHandlers::getUnknownBlockStateData());
+				continue;
+			}
+			try{
+				$palette[$i] = $blockStateDeserializer->deserialize($blockStateData);
+			}catch(BlockStateDeserializeException $e){
+				Server::getInstance()->getLogger()->error("Failed to deserialize blockstate: " . $e->getMessage() . " offset $i in palette, blockstate NBT: " . $blockStateNbt->toString());
+				$palette[$i] = $blockStateDeserializer->deserialize(GlobalBlockStateHandlers::getUnknownBlockStateData());
+			}
 		}
 		return $palette;
 	}
 
-	/** @phpstan-param array<string,int> $palette */
 	private function writePalette(string $paletteName, PalettedBlockArray $palette) : void{
-		/** @var BlockStatesParser $blockStatesParser */
-		$blockStatesParser = BlockStatesParser::getInstance();
-		#$this->palettes[$paletteName] = [];
-		$index = 0;
+		$blockStateSerializer = GlobalBlockStateHandlers::getSerializer();
+		$i = 0;
 		$palette->collectGarbage();
-		foreach($palette->getPalette() as $fullId){
-			if($fullId !== 0xff_ff_ff_ff){
-				$blockState = $blockStatesParser->getFullId($fullId);
-				$this->palettes[$paletteName][MCStructure::TAG_PALETTE_BLOCK_PALETTE][$index] = $blockState->state->getBlockState();
-				$index++;
+		foreach($palette->getPalette() as $stateId){
+			if($stateId !== 0xff_ff_ff_ff){//TODO check if this still works/is needed
+				try{
+					$this->palettes[$paletteName][MCStructure::TAG_PALETTE_BLOCK_PALETTE][$i] = $blockStateSerializer->serialize($stateId)->toNbt();
+					$i++;
+				}catch(BlockStateSerializeException $e){
+					//while not ideal, this is not a fatal error
+					Server::getInstance()->getLogger()->error("Failed to serialize blockstate: " . $e->getMessage() . " offset $i in palette, blockstate ID: " . $stateId);
+				}
 			}
 		}
 	}

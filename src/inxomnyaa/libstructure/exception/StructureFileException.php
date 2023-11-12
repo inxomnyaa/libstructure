@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace xenialdan\libstructure\exception;
+namespace inxomnyaa\libstructure\exception;
 
 class StructureFileException extends StructureException{
 

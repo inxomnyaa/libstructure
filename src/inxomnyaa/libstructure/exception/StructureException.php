@@ -1,6 +1,6 @@
 <?php
 
-namespace xenialdan\libstructure\exception;
+namespace inxomnyaa\libstructure\exception;
 
 use Exception;
 

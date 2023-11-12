@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace xenialdan\libstructure\exception;
+namespace inxomnyaa\libstructure\exception;
 
 use pocketmine\nbt\NbtDataException;
 

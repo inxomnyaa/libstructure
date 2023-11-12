@@ -1,9 +1,14 @@
 <?php
 
-namespace xenialdan\libstructure\format;
+namespace inxomnyaa\libstructure\format;
 
 use Generator;
 use InvalidArgumentException;
+use inxomnyaa\libblockstate\BlockState;
+use inxomnyaa\libblockstate\BlockStatesParser;
+use inxomnyaa\libstructure\exception\StructureFileException;
+use inxomnyaa\libstructure\exception\StructureFormatException;
+use inxomnyaa\libstructure\format\filter\PalettedBlockArrayFilter;
 use OutOfBoundsException;
 use OutOfRangeException;
 use pocketmine\block\Block;
@@ -24,15 +29,11 @@ use pocketmine\nbt\UnexpectedTagTypeException;
 use pocketmine\network\mcpe\protocol\types\BlockPosition;
 use pocketmine\utils\AssumptionFailedError;
 use pocketmine\utils\Filesystem;
+use pocketmine\world\format\io\GlobalBlockStateHandlers;
 use pocketmine\world\format\PalettedBlockArray;
 use pocketmine\world\Position;
 use pocketmine\world\World;
 use UnexpectedValueException;
-use xenialdan\libblockstate\BlockState;
-use xenialdan\libblockstate\BlockStatesParser;
-use xenialdan\libstructure\exception\StructureFileException;
-use xenialdan\libstructure\exception\StructureFormatException;
-use xenialdan\libstructure\format\filter\MCStructureFilter;
 use function array_key_exists;
 use function count;
 
@@ -107,17 +108,15 @@ class MCStructure{
 		$this->palette = &$this->structure->palettes[$name];
 	}
 
-	public function lookup(BlockState $properties) : int{
-		foreach($this->palette[MCStructure::TAG_PALETTE_BLOCK_PALETTE] as $index => $entry){
-			/** @var BlockStatesParser $blockStatesParser */
-			$blockStatesParser = BlockStatesParser::getInstance();
-			$blockState = $blockStatesParser->getFromCompound($entry);
-			if($blockState instanceof BlockState && $blockState->equals($properties)){
-				return $index;
-			}
-		}
-		return -1;
-	}
+//	public function lookup(BlockStateData $properties) : int{
+//		foreach($this->palette[MCStructure::TAG_PALETTE_BLOCK_PALETTE] as $index => $entry){
+//			$blockState = $blockStatesParser->getFromCompound($entry);
+//			if($blockState instanceof BlockState && $blockState->equals($properties)){
+//				return $index;
+//			}
+//		}
+//		return -1;
+//	}
 
 
 	/**
@@ -235,7 +234,7 @@ class MCStructure{
 	}
 
 	/**
-	 * @param PalettedBlockArray|null $palettedBlockArray can be filtered or modified using {@link MCStructureFilter} methods. If null is passed, the current layer will be used.
+	 * @param PalettedBlockArray|null $palettedBlockArray can be filtered or modified using {@link PalettedBlockArrayFilter} methods. If null is passed, the current layer will be used.
 	 *
 	 * @return Generator
 	 * @phpstan-return Generator<int, Block>
@@ -253,23 +252,23 @@ class MCStructure{
 	/**
 	 * Get block at position.
 	 *
-	 * @param PalettedBlockArray|null $palettedBlockArray can be filtered or modified using {@link MCStructureFilter} methods. If null is passed, the current layer will be used.
+	 * @param PalettedBlockArray|null $palettedBlockArray can be filtered or modified using {@link PalettedBlockArrayFilter} methods. If null is passed, the current layer will be used.
 	 */
 	public function get(int $x, int $y, int $z, ?PalettedBlockArray $palettedBlockArray = null) : ?Block{//TODO offset
 		$palettedBlockArray ??= $this->getPalettedBlockArray();
-		$fullId = $palettedBlockArray->get($x, $y, $z);
-		if($fullId === 0xff_ff_ff_ff) return null;
-		$block = BlockFactory::getInstance()->fromFullBlock($fullId);
+		$stateId = $palettedBlockArray->get($x, $y, $z);
+		if($stateId === 0xff_ff_ff_ff) return null;
+		$block = GlobalBlockStateHandlers::getDeserializer()->deserializeBlock(GlobalBlockStateHandlers::getSerializer()->serialize($stateId));
 		[$block->getPosition()->x, $block->getPosition()->y, $block->getPosition()->z] = [$x, $y, $z];
 		return $block;
 	}
 
-	public function set(int $x, int $y, int $z, ?BlockState $blockState, ?CompoundTag $nbt = null){
-		if($blockState === null){
+	public function set(int $x, int $y, int $z, ?Block $block, ?CompoundTag $nbt = null){
+		if($block === null){
 			$this->getPalettedBlockArray()->set($x, $y, $z, 0xff_ff_ff_ff);
 			return;
 		}
-		$this->getPalettedBlockArray()->set($x, $y, $z, $blockState->getFullId());
+		$this->getPalettedBlockArray()->set($x, $y, $z, $block->getStateId());
 //		$ptr = $this->lookup($blockState);
 //		if($ptr === -1){
 //			$ptr = count($this->palette[self::TAG_PALETTE_BLOCK_PALETTE]);
